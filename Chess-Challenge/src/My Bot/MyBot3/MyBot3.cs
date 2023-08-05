@@ -12,9 +12,9 @@ public class MyBot3 : MyBot3_Base
     UseQuiescence = true;
     QuiescenceHardPlyLimit = 5;
     MoveSort = "module";
-    // UseKillerMoves = true;
+    UseKillerMoves = true;
     // EndGameDeepening = false;
-    // WiggleThreshold = 3;
+    WiggleThreshold = 3;
 
     Logging = false;
   }

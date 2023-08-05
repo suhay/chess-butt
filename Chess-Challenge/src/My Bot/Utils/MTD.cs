@@ -5,18 +5,18 @@ public partial class MyBot3_Base
 {
   public int MTD(int depth, Board board, int guess, int color)
   {
-    int upperbound = Max;
-    int lowerbound = Min;
+    int upperBound = Inf;
+    int lowerBound = -Inf;
 
-    while (lowerbound < upperbound)
+    while (lowerBound < upperBound)
     {
-      int beta = Math.Max(guess, lowerbound + 1);
+      int beta = Math.Max(guess, lowerBound + 1);
       guess = NegaMax(depth, board, beta - 1, beta, color);
 
       if (guess < beta)
-        upperbound = guess;
+        upperBound = guess;
       else
-        lowerbound = guess;
+        lowerBound = guess;
     }
 
     return guess;

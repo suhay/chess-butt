@@ -3,9 +3,9 @@ using ChessChallenge.API;
 
 public abstract partial class MyBot3_Base : IChessBot
 {
-  protected TranspositionTable transpositionTable = new TranspositionTable();
+  protected TranspositionTable transpositionTable = new();
   protected ExperimentType[] experiments;
-  protected KillerMoves KillerMoves = new KillerMoves();
+  protected KillerMoves KillerMoves = new();
 
   int color = 1;
   bool logging = false;
@@ -19,17 +19,17 @@ public abstract partial class MyBot3_Base : IChessBot
   bool useQuiescence = false;
   int quiescenceHardPlyLimit = 0;
   bool useTT = false;
-  bool useTT2 = false;
+  bool useTT2 = true;
   int nodes = 0;
   string moveSort = "";
   bool useKillerMoves = false;
   bool endGameDeepening = false;
-  int ply = 0;
+  // int ply = 0;
 
   bool failHard = false; // Negamax fail hard
   bool abTest = false;
 
-  public static Dictionary<PieceType, int> PieceVal = new Dictionary<PieceType, int>
+  public static Dictionary<PieceType, int> PieceVal = new()
   {
     {PieceType.None, 0},
     {PieceType.Pawn, 100},
@@ -40,9 +40,9 @@ public abstract partial class MyBot3_Base : IChessBot
     {PieceType.King, 10000}
   };
 
-  public readonly int CheckMate = 100000;
-  public readonly int Min = -99999;
-  public readonly int Max = 99999;
+  public static readonly int CheckMate = 100000; // Checkmate in 1
+  public static readonly int CheckMateSoon = 90000; // Checkmate in N turns
+  public static readonly int Inf = int.MaxValue;
 
   public int Color { get => color; protected set => color = value; }
   public int Depth { get => depth; protected set => depth = value; }
@@ -64,7 +64,7 @@ public abstract partial class MyBot3_Base : IChessBot
   public bool UseKillerMoves { get => useKillerMoves; protected set => useKillerMoves = value; }
 
   public int Nodes { get => nodes; protected set => nodes = value; }
-  public int Ply { get => ply; protected set => ply = value; }
+  // public int Ply { get => ply; protected set => ply = value; }
   public bool Logging { get => logging; protected set => logging = value; }
   public int QuiescenceHardPlyLimit { get => quiescenceHardPlyLimit; protected set => quiescenceHardPlyLimit = value; }
   public bool ABTest { get => abTest; protected set => abTest = value; }

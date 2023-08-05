@@ -41,15 +41,13 @@ public partial class MyBot3_Base
       alpha = eval;
 
     Move[] captureMoves = board.GetLegalMoves(true);
-    Move[] orderedMoves = SortMoves(captureMoves, board, color);
+    Move[] orderedMoves = SortMoves(captureMoves, board);
 
     foreach (Move move in orderedMoves)
     {
-      Ply++;
       board.MakeMove(move);
       int score = -Quiescence(board, -beta, -alpha, -color, depth);
       board.UndoMove(move);
-      Ply--;
 
       if (score >= beta)
         return beta;
@@ -90,12 +88,12 @@ public partial class MyBot3_Base
   int EvaluateMove(Move move, int ply)
   {
     if (move.IsCapture)
-      return mvv_lva[(int)move.MovePieceType - 1, (int)move.CapturePieceType - 1];
+      return mvv_lva[(int)move.MovePieceType - 1, (int)move.CapturePieceType - 1] + 10000;
 
-    if (KillerMoves.K1[ply] == move)
+    if (KillerMoves.K1.ContainsKey(ply) && KillerMoves.K1[ply] == move)
       return 9000;
 
-    if (KillerMoves.K2[ply] == move)
+    if (KillerMoves.K2.ContainsKey(ply) && KillerMoves.K2[ply] == move)
       return 8000;
 
     return 0;

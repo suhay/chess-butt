@@ -15,7 +15,7 @@ public struct MoveEvaluation
 
 public partial class MyBot3_Base
 {
-  protected Move[] SortMoves(Move[] moves, Board board, int color)
+  protected Move[] SortMoves(Move[] moves, Board board)
   {
     if (MoveSort == "module")
       return SortMovesModule(moves, board);
@@ -23,12 +23,18 @@ public partial class MyBot3_Base
     return moves;
   }
 
+  // 1. PV move
+  // 2. Captures in MVV/LVA
+  // 3. 1st killer move
+  // 4. 2nd killer move
+  // 5. History moves
+  // 6. Unsorted moves
   Move[] SortMovesModule(Move[] moves, Board board)
   {
-    List<MoveEvaluation> orderedMoves = new List<MoveEvaluation>();
+    List<MoveEvaluation> orderedMoves = new();
     foreach (Move move in moves)
     {
-      int score = EvaluateMove(move, Ply);
+      int score = EvaluateMove(move, board.PlyCount);
       orderedMoves.Add(new MoveEvaluation(score, move));
     }
 

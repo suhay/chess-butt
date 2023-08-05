@@ -12,15 +12,15 @@ struct Transposition
   public int Depth { get; }
   public int Score { get; }
   /// <summary>
-  /// 0 = Exact, 1 = Upper, -1 = Lower
+  /// 0 = Exact, 1 = Alpha, 2 = Beta
   /// </summary>
   public int Flag { get; }
 }
 
 public class TranspositionTable
 {
-  Dictionary<ulong, Transposition> Table = new Dictionary<ulong, Transposition>();
-  Dictionary<ulong, Transposition> MaxTable = new Dictionary<ulong, Transposition>();
+  Dictionary<ulong, Transposition> Table = new();
+  Dictionary<ulong, Transposition> MaxTable = new();
 
   internal void Clear()
   {
@@ -28,38 +28,43 @@ public class TranspositionTable
     MaxTable.Clear();
   }
 
-  internal int? Get(ulong key, int depth, int alpha, int beta)
+  internal int? Get(ulong key, int depth, int alpha, int beta, int ply)
   {
-    Transposition entry = Table.ContainsKey(key) ? Table[key] : new Transposition(0, -1, 0);
+    Transposition entry = Table.ContainsKey(key) ? Table[key] : new(0, -1, 0);
 
     int i = 0;
     do
     {
+      int score = entry.Score;
+      if (score < -MyBot3_Base.CheckMateSoon) score += ply;
+      if (score > MyBot3_Base.CheckMateSoon) score -= ply;
+
       if (entry.Depth >= depth)
       {
         if (entry.Flag == 0)
-          return entry.Score;
-        else if (entry.Flag == -1 && entry.Score >= alpha)
-          return entry.Score;
-        else if (entry.Flag == 1 && entry.Score <= beta)
-          return entry.Score;
+          return score;
+        else if (entry.Flag == 1 && score <= alpha)
+          return alpha;
+        else if (entry.Flag == 2 && score >= beta)
+          return beta;
       }
       i++;
-      entry = MaxTable.ContainsKey(key) ? MaxTable[key] : new Transposition(0, -1, 0);
+      if (!MaxTable.ContainsKey(key)) break;
+      entry = MaxTable[key];
     } while (i < 2);
 
     return null;
   }
 
-  internal void Store(ulong key, int score, int oldAlpha, int beta, int depth)
+  /// <summary>
+  /// Flag: 0 = Exact, 1 = Alpha, 2 = Beta
+  /// </summary>
+  internal void Store(ulong key, int score, int depth, int flag, int ply)
   {
-    int flag = 0;
-    if (score < oldAlpha)
-      flag = 1;
-    else if (score > beta)
-      flag = -1;
+    if (score < -MyBot3_Base.CheckMateSoon) score -= ply;
+    if (score > MyBot3_Base.CheckMateSoon) score += ply;
 
-    Transposition newTransposition = new Transposition(score, depth, flag);
+    Transposition newTransposition = new(score, depth, flag);
     if (MaxTable.ContainsKey(key))
     {
       if (MaxTable[key].Depth > depth)

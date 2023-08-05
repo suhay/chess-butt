@@ -209,9 +209,10 @@ namespace ChessChallenge.Application
     {
       return type switch
       {
-        PlayerType.MyBot => new ChessPlayer(new MyBot(), type, GameDurationMilliseconds),
-        PlayerType.EvilBot => new ChessPlayer(new EvilBot(), type, GameDurationMilliseconds),
-        PlayerType.TestBot => new ChessPlayer(new TestBot(), type, GameDurationMilliseconds),
+        PlayerType.MyBot => new ChessPlayer(new MyBot(), type),
+        // PlayerType.EvilBot => new ChessPlayer(new EvilBot(), type, GameDurationMilliseconds),
+        PlayerType.EvilBot => new ChessPlayer(new EvilBot(), type),
+        PlayerType.TestBot => new ChessPlayer(new TestBot(), type),
         _ => new ChessPlayer(new HumanPlayer(boardUI), type)
       };
     }
@@ -294,7 +295,8 @@ namespace ChessChallenge.Application
         {
           UpdateBotMatchStats(result);
           botMatchGameIndex++;
-          int numGamesToPlay = botMatchStartFens.Length * 2;
+          // int numGamesToPlay = botMatchStartFens.Length * 2;
+          int numGamesToPlay = 100;
 
           if (botMatchGameIndex < numGamesToPlay && autoStartNextBotMatch)
           {

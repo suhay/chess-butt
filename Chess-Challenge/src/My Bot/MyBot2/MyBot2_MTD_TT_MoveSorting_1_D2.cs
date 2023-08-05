@@ -156,7 +156,7 @@ public class MyBot2_MTD_TT_MoveSorting_1_D2 : IChessBot
 
     if (UseTT)
     {
-      int? entry = TranspositionTable.Get(key, depth, alpha, beta);
+      int? entry = TranspositionTable.Get(key, depth, alpha, beta, 0);
       if (entry.HasValue)
         return (int)entry;
     }
@@ -184,20 +184,20 @@ public class MyBot2_MTD_TT_MoveSorting_1_D2 : IChessBot
 
       if (score >= beta)
       {
-        TranspositionTable.Store(key, score, oldAlpha, beta, depth);
+        TranspositionTable.Store(key, score, depth, 2, 0);
         return score;
       }
 
       if (score > bestScore)
       {
-        TranspositionTable.Store(key, score, oldAlpha, beta, depth);
+        TranspositionTable.Store(key, score, depth, 1, 0);
         bestScore = score;
         if (score > alpha)
           alpha = score;
       }
     }
 
-    TranspositionTable.Store(key, bestScore, oldAlpha, beta, depth);
+    TranspositionTable.Store(key, bestScore, depth, 0, 0);
     return bestScore;
   }
 

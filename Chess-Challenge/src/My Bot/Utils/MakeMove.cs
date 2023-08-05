@@ -5,16 +5,15 @@ public partial class MyBot3_Base
   int MakeMove(Board board, Move move, int depth, int alpha, int beta, int color, bool isRoot = false, bool useMTD = false)
   {
     Nodes++;
-    Ply++;
     board.MakeMove(move);
     Log_MakeMove(depth, move);
 
     if (board.IsInCheckmate())
     {
-      Ply--;
+      int checkmateScore = depth == Depth ? CheckMate : CheckMateSoon + board.PlyCount;
       board.UndoMove(move);
-      Log_UndoMove(color, move, CheckMate);
-      return CheckMate;
+      Log_UndoMove(color, move, checkmateScore);
+      return checkmateScore;
     }
 
     int score;
@@ -25,17 +24,11 @@ public partial class MyBot3_Base
       if (useMTD)
         score = -MTD(depth, board, BestGuess, color);
       else
-      {
-        if (UseTT)
-          score = -NegaMaxWithTransposition(depth, board, alpha, beta, -color);
-        else
-          score = -NegaMax(depth, board, alpha, beta, -color);
-      }
+        score = -NegaMax(depth, board, alpha, beta, -color);
     }
     else
       score = -NegaMax(depth, board, -beta, -alpha, -color);
 
-    Ply--;
     board.UndoMove(move);
     Log_UndoMove(color, move, score);
 

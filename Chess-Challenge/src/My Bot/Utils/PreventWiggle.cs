@@ -11,7 +11,6 @@ public partial class MyBot3_Base
         .TakeLast(WiggleThreshold)
         .FirstOrDefault((prevMove) => prevMove.Equals(move), new Move()) != Move.NullMove)
     {
-      Console.WriteLine("Check wiggle in game history: {0}", move.ToString());
       return true;
     }
 
@@ -20,12 +19,11 @@ public partial class MyBot3_Base
 
   protected bool ThreefoldRepetition(Board board)
   {
-    int repCount = board.GameRepetitionHistory.Count((x => x == board.ZobristKey));
+    int repCount = board.GameRepetitionHistory.Count(x => x == board.ZobristKey);
 
     // Prevent threefold repetition to keep the game going
     if (repCount >= 2)
     {
-      Console.WriteLine("Check wiggle in game repetition history");
       return true;
     }
 
