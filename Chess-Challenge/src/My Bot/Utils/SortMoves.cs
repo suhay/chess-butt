@@ -15,10 +15,10 @@ public struct MoveEvaluation
 
 public partial class MyBot3_Base
 {
-  protected Move[] SortMoves(Move[] moves, Board board)
+  protected Move[] SortMoves(Move[] moves, Board board, bool isRoot = false)
   {
     if (MoveSort == "module")
-      return SortMovesModule(moves, board);
+      return SortMovesModule(moves, board, isRoot);
 
     return moves;
   }
@@ -29,12 +29,12 @@ public partial class MyBot3_Base
   // 4. 2nd killer move
   // 5. History moves
   // 6. Unsorted moves
-  Move[] SortMovesModule(Move[] moves, Board board)
+  Move[] SortMovesModule(Move[] moves, Board board, bool isRoot = false)
   {
     List<MoveEvaluation> orderedMoves = new();
     foreach (Move move in moves)
     {
-      int score = EvaluateMove(move, board.PlyCount);
+      int score = EvaluateMove(board, move, board.PlyCount, isRoot);
       orderedMoves.Add(new MoveEvaluation(score, move));
     }
 

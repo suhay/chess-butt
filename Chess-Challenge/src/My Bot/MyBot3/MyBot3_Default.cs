@@ -13,9 +13,7 @@ public class MyBot3_Default : MyBot3_Base
   {
     Color = board.IsWhiteToMove ? 1 : -1;
 
-    Move[] moves = board.GetLegalMoves();
-    Move[] bestMoves = NegaMaxRoot(moves, board, Depth, Color, UseMTD);
-    // bestMoves = InternalIterativeDeepening(bestMoves, board, Color);
+    Move[] bestMoves = NegaMaxRoot(board, Depth, -Inf, Inf, Color, UseMTD);
 
     Random rng = new();
     Move nextMove = bestMoves[rng.Next(bestMoves.Length)];

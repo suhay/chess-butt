@@ -12,12 +12,12 @@ public static class MaxEuwe
   public static Dictionary<PieceType, int> pieceVal = new Dictionary<PieceType, int>
   {
     {PieceType.None, 0},
-    {PieceType.Pawn, 10},
-    {PieceType.Rook, 45},
-    {PieceType.Knight, 30},
-    {PieceType.Bishop, 30},
-    {PieceType.Queen, 95},
-    {PieceType.King, 1000}
+    {PieceType.Pawn, 100},
+    {PieceType.Rook, 450},
+    {PieceType.Knight, 300},
+    {PieceType.Bishop, 300},
+    {PieceType.Queen, 950},
+    {PieceType.King, 0},
   };
 
   public static int Evaluate(Piece piece)

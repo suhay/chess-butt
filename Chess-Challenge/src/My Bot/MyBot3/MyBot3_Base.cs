@@ -6,6 +6,8 @@ public abstract partial class MyBot3_Base : IChessBot
   protected TranspositionTable transpositionTable = new();
   protected ExperimentType[] experiments;
   protected KillerMoves KillerMoves = new();
+  protected Dictionary<int, Move> PVTable = new();
+  protected Dictionary<int, Move> movesToScore = new();
 
   int color = 1;
   bool logging = false;
@@ -18,15 +20,19 @@ public abstract partial class MyBot3_Base : IChessBot
   int capturePriority = 0;
   bool useQuiescence = false;
   int quiescenceHardPlyLimit = 0;
+  bool useCheckInQuiescence = false;
   bool useTT = false;
   bool useTT2 = true;
   int nodes = 0;
   string moveSort = "";
   bool useKillerMoves = false;
   bool endGameDeepening = false;
-  // int ply = 0;
+  bool usePV = false;
+  bool useNullMovePruning = false;
+  bool isInEndGame = false;
+  protected Move nextMove;
 
-  bool failHard = false; // Negamax fail hard
+  bool failHard = false; // NegaMax fail hard
   bool abTest = false;
 
   public static Dictionary<PieceType, int> PieceVal = new()
@@ -56,17 +62,21 @@ public abstract partial class MyBot3_Base : IChessBot
   public bool UseTT { get => useTT; protected set => useTT = value; }
   public bool UseTT2 { get => useTT2; protected set => useTT2 = value; }
 
-  public int BestGuess { get => bestGuess; protected set => bestGuess = value; }
   public bool UseMTD { get => useMTD; protected set => useMTD = value; }
+  public int BestGuess { get => bestGuess; protected set => bestGuess = value; }
 
   public bool UseQuiescence { get => useQuiescence; protected set => useQuiescence = value; }
+  public bool UseCheckInQuiescence { get => useCheckInQuiescence; protected set => useCheckInQuiescence = value; }
+  public int QuiescenceHardPlyLimit { get => quiescenceHardPlyLimit; protected set => quiescenceHardPlyLimit = value; }
 
   public bool UseKillerMoves { get => useKillerMoves; protected set => useKillerMoves = value; }
+  public bool UsePV { get => usePV; protected set => usePV = value; }
+  public bool UseNullMovePruning { get => useNullMovePruning; protected set => useNullMovePruning = value; }
 
   public int Nodes { get => nodes; protected set => nodes = value; }
   // public int Ply { get => ply; protected set => ply = value; }
+  public bool IsInEndGame { get => isInEndGame; protected set => isInEndGame = value; }
   public bool Logging { get => logging; protected set => logging = value; }
-  public int QuiescenceHardPlyLimit { get => quiescenceHardPlyLimit; protected set => quiescenceHardPlyLimit = value; }
   public bool ABTest { get => abTest; protected set => abTest = value; }
   public bool FailHard { get => failHard; protected set => failHard = value; }
   public bool EndGameDeepening { get => endGameDeepening; protected set => endGameDeepening = value; }

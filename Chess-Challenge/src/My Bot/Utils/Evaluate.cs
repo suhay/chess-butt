@@ -1,3 +1,4 @@
+using System;
 using ChessChallenge.API;
 
 public partial class MyBot3_Base
@@ -17,12 +18,21 @@ public partial class MyBot3_Base
     if (UseQuiescence)
       return Quiescence(board, alpha, beta, color);
 
-    return color * EvaluateBoard(board);
+    return EvaluateBoard(board, color);
   }
 
   int Quiescence(Board board, int alpha, int beta, int color, int? depth = null)
   {
-    int eval = color * EvaluateBoard(board);
+    if (UseCheckInQuiescence && board.IsInCheck())
+      return -NegaMax(1, board, -beta, -alpha, -color);
+
+    int eval = EvaluateBoard(board, color);
+
+    if (eval >= beta)
+      return beta;
+
+    if (eval > alpha)
+      alpha = eval;
 
     if (depth != null)
     {
@@ -33,12 +43,6 @@ public partial class MyBot3_Base
 
     if (QuiescenceHardPlyLimit > 0 && depth == null)
       depth = QuiescenceHardPlyLimit;
-
-    if (eval >= beta)
-      return beta;
-
-    if (eval > alpha)
-      alpha = eval;
 
     Move[] captureMoves = board.GetLegalMoves(true);
     Move[] orderedMoves = SortMoves(captureMoves, board);
@@ -59,7 +63,7 @@ public partial class MyBot3_Base
     return alpha;
   }
 
-  protected int EvaluateBoard(Board board)
+  protected int EvaluateBoard(Board board, int color)
   {
     PieceList[] pieceList = board.GetAllPieceLists();
     int materialVal = 0;
@@ -77,7 +81,7 @@ public partial class MyBot3_Base
 
     int boardVal = Juice.GetJuice(experiments, board);
 
-    return materialVal + boardVal;
+    return color * (materialVal + boardVal);
   }
 
   int EvaluatePiece(Piece piece)
@@ -85,10 +89,19 @@ public partial class MyBot3_Base
     return Juice.GetJuice(experiments, piece);
   }
 
-  int EvaluateMove(Move move, int ply)
+  int EvaluateMove(Board board, Move move, int ply, bool isRoot = false)
   {
+    if (UsePV && isRoot && PVTable.ContainsKey(ply) && PVTable[ply] == move)
+    {
+      Console.WriteLine("All according to plan...");
+      return 20000;
+    }
+
     if (move.IsCapture)
-      return mvv_lva[(int)move.MovePieceType - 1, (int)move.CapturePieceType - 1] + 10000;
+    {
+      int weight = mvv_lva[(int)move.MovePieceType - 1, (int)move.CapturePieceType - 1] + 10000;
+      return weight + (!board.SquareIsAttackedByOpponent(move.TargetSquare) ? 700 : 0);
+    }
 
     if (KillerMoves.K1.ContainsKey(ply) && KillerMoves.K1[ply] == move)
       return 9000;

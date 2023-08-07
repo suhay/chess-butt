@@ -1,5 +1,5 @@
-using System;
 using System.Collections.Generic;
+using System.Linq;
 using ChessChallenge.API;
 
 public partial class MyBot3_Base
@@ -19,67 +19,62 @@ public partial class MyBot3_Base
     return new Move();
   }
 
-  protected Move[] NegaMaxRoot(Move[] moves, Board board, int depth, int color, bool useMTD = false)
+  protected Move[] NegaMaxRoot(Board board, int depth, int alpha, int beta, int color, bool useMTD = false)
   {
     Nodes = 0;
+    IsInEndGame = !IsInEndGame
+      && board.PlyCount > 60
+      && board.GetAllPieceLists().Sum((pieceList) => pieceList.Count()) <= 8;
+
     // Repetition history clears when a pawn moves or a capture is made. We can safely clear the transposition table
     if (board.GameRepetitionHistory.Length == 0)
       transpositionTable.Clear();
+
+    Move[] moves = board.GetLegalMoves();
 
     if (moves.Length <= 1)
       return moves;
 
     KillerMoves.Clear();
 
-    Move[] orderedMoves = SortMoves(moves, board);
-
-    if (EndGameDeepening)
+    // If the opponent did not make the move that our PV Table has next, the table is not viable so clear it
+    if (PVTable.ContainsKey(board.PlyCount - 1))
     {
-      if (board.PlyCount > 60)
-      {
-        PieceList[] pieceList = board.GetAllPieceLists();
-        int numPieces = 0;
-        Array.ForEach(pieceList, pieces => numPieces += pieces.Count);
-        if (numPieces <= 15)
-          depth += 2;
-      }
+      if (board.GameMoveHistory.Last() != PVTable[board.PlyCount - 1])
+        PVTable.Clear();
     }
 
-    List<Move> bestMoves = new();
-    int bestScore = -Inf;
-    int alpha = -Inf;
-    int beta = Inf;
+    Move[] orderedMoves = SortMoves(moves, board, isRoot: true);
 
+    if (IsInEndGame && EndGameDeepening)
+      depth += 2;
+
+    List<Move> bestMoves = new();
+
+    int score;
+    int bestScore = alpha;
     foreach (Move move in orderedMoves) // root move
     {
       // Prevents kings from wiggling back and forth. But if we have no choice...
       if (orderedMoves.Length > 2 && Wiggling(board, move))
         continue;
 
-      if (orderedMoves.Length <= 20 && board.PlyCount > 50)
-      {
-        Console.WriteLine();
-      }
-
-      int score = MakeMove(board, move, depth, alpha, beta, color, isRoot: true, useMTD); // make root move
+      score = MakeMove(board, move, depth, alpha, beta, color, useMTD); // make root move
       Log_NegaMaxClosingReport(score, color, bestScore);
 
-      // The move list always favors the king since it's calculated first, this way we can randomly select from all equal moves
       if (score == bestScore)
         bestMoves.Add(move);
 
       else if (score > bestScore)
       {
         bestScore = score;
+        movesToScore[board.PlyCount] = move;
         bestMoves.Clear();
         bestMoves.Add(move);
 
-        // Checkmate in one, we're done
         if (score == CheckMate)
           break;
       }
-
-      alpha = Math.Max(bestScore, alpha);
     }
 
     Log_Outcome(bestScore);

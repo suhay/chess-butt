@@ -219,7 +219,7 @@ namespace ChessChallenge.Application
 
     static (int totalTokenCount, int debugTokenCount) GetTokenCount()
     {
-      string path = Path.Combine(Directory.GetCurrentDirectory(), "src", "My Bot", "MyBot.cs");
+      string path = Path.Combine(Directory.GetCurrentDirectory(), "src", "My Bot", "MyBot3", "MyBot3_6_RC1.cs");
 
       using StreamReader reader = new(path);
       string txt = reader.ReadToEnd();
