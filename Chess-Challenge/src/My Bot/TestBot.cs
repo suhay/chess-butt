@@ -5,7 +5,7 @@ public class TestBot : IChessBot
   IChessBot Bot;
   public TestBot()
   {
-    Bot = new MyBot3_Default();
+    Bot = new MyBot3_6_RC1.MyBot();
   }
 
   public Move Think(Board board, Timer timer)
