@@ -3,27 +3,25 @@ using System.Collections.Generic;
 using System.Linq;
 using ChessChallenge.API;
 
-// 924
+// 884
 namespace MyBot4
 {
-  public record Transposition(int Score, byte Depth, byte Flag /*, string move*/);
+  public record Transposition(int Score, byte Depth, byte Flag); // ~6 bytes per record
 
   public class TranspositionTable
   {
-    public SortedDictionary<ulong, Transposition> Table = new();
-    int maxTableSize = 200000;
+    private readonly SortedDictionary<ulong, Transposition> table = new();
+    private readonly int maxTableSize = 2000000; // 256mb / 6 bytes = ~24,000,000 records is the upper bound
 
     public int? Get(ulong key, int depth, int alpha, int beta, int ply)
     {
-      if (Table.TryGetValue(key, out var entry) && entry.Depth >= depth)
+      if (table.TryGetValue(key, out var entry) && entry.Depth >= depth)
       {
         // Remove the entry and put it on the end to maintain order
-        Table.Remove(key);
-        Table.Add(key, entry);
+        table.Remove(key);
+        table.Add(key, entry);
 
-        int score = entry.Score;
-        if (score < -90000) score += ply;
-        if (score > 90000) score -= ply;
+        int score = AdjustScore(entry.Score, ply);
 
         if (entry.Flag == 0)
           return score;
@@ -36,42 +34,35 @@ namespace MyBot4
       return null;
     }
 
-    /// <summary>
-    /// Flag: 0 = Exact, 1 = Alpha, 2 = Beta
-    /// </summary>
-    public void Store(ulong key, int score, int depth, int flag, int ply/*, string move*/)
+    // Flag: 0 = Exact, 1 = Alpha, 2 = Beta
+    public void Store(ulong key, int score, int depth, int flag, int ply)
     {
-      if (score < -90000) score -= ply;
-      if (score > 90000) score += ply;
+      score = AdjustScore(score, -ply);
 
-      Transposition newTransposition = new(score, (byte)depth, (byte)flag);
-      if (Table.TryGetValue(key, out var existingEntry))
-      {
-        Table.Remove(key);
+      if (table.TryGetValue(key, out var existingEntry))
         // Replace on Depth if the new entry has higher depth, or always replace if it's the same
-        Table.Add(key, depth >= existingEntry.Depth
-          ? newTransposition
-          : existingEntry);
-      }
+        if (depth >= existingEntry.Depth)
+          table[key] = new Transposition(score, (byte)depth, (byte)flag);
+        else
+          table.Add(key, new Transposition(score, (byte)depth, (byte)flag));
 
-      // Else, always replace
-      else
-        Table.Add(key, newTransposition);
+      while (table.Count > maxTableSize)
+        table.Remove(table.Keys.First());
+    }
 
-      // Check if the table size exceeds the maximum size, trim
-      while (Table.Count >= maxTableSize)
-      {
-        // Remove the oldest (first) entry to maintain order
-        Table.Remove(Table.Keys.First());
-      }
+    private int AdjustScore(int score, int ply)
+    {
+      if (score < -90000) score += ply;
+      if (score > 90000) score -= ply;
+      return score;
     }
   }
 
   public class MyBot : IChessBot
   {
-    int Inf = int.MaxValue;
-    int Depth = 3;
-    Dictionary<PieceType, int> PieceVal = new()
+    private int Inf = int.MaxValue;
+    private int Depth = 3;
+    private readonly Dictionary<PieceType, int> PieceVal = new()
     {
       { PieceType.None, 0 },
       { PieceType.Pawn, 100 },
@@ -81,25 +72,21 @@ namespace MyBot4
       { PieceType.Queen, 900 },
       { PieceType.King, 0 }
     };
-    TranspositionTable TranspositionTable = new();
-    int Nodes = 0;
+    private readonly TranspositionTable transpositionTable = new();
+    private int nodes;
 
     public Move Think(Board board, Timer timer)
     {
-      Nodes = 0;
+      nodes = 0;
       Move[] bestMoves = NegaMaxRoot(board, Depth, -Inf, Inf, board.IsWhiteToMove ? 1 : -1);
       Random rng = new();
       Move nextMove = bestMoves[rng.Next(bestMoves.Length)];
-      Console.WriteLine("Nodes: {0}", Nodes);
+      Console.WriteLine("Nodes: {0}", nodes);
       return nextMove;
     }
 
-    Move[] NegaMaxRoot(Board board, int depth, int alpha, int beta, int color)
+    private Move[] NegaMaxRoot(Board board, int depth, int alpha, int beta, int color)
     {
-      // Repetition history clears when a pawn moves or a capture is made. We can safely clear the transposition table
-      // if (board.GameRepetitionHistory.Length == 0)
-      //   TranspositionTable.Table.Clear();
-
       Move[] moves = GetOrderedMoves(board);
       if (moves.Length <= 1)
         return moves;
@@ -107,13 +94,12 @@ namespace MyBot4
       List<Move> bestMoves = new();
 
       int bestScore = alpha;
-      foreach (Move move in moves) // root move
+      foreach (Move move in moves)
       {
-        int score = MakeMove(board, move, depth, alpha, beta, color); // make root move
+        int score = MakeAndUndoMove(board, move, depth, alpha, beta, color);
 
         if (score == bestScore)
           bestMoves.Add(move);
-
         else if (score > bestScore)
         {
           bestScore = score;
@@ -129,83 +115,74 @@ namespace MyBot4
       return bestMoves.Count == 0 ? moves : bestMoves.ToArray();
     }
 
-    int MakeMove(Board board, Move move, int depth, int alpha, int beta, int color)
+    private int MakeAndUndoMove(Board board, Move move, int depth, int alpha, int beta, int color)
     {
       board.MakeMove(move);
-      Nodes++;
+      nodes++;
       if (board.IsInCheckmate())
       {
         board.UndoMove(move);
         return depth == Depth ? 100000 : 90000 + board.PlyCount;
       }
 
-      int score = -NegaMax(depth, board, -beta, -alpha, -color/*, move.StartSquare.Name + move.TargetSquare.Name*/);
+      int score = -NegaMax(depth, board, -beta, -alpha, -color);
       board.UndoMove(move);
 
       return score;
     }
 
-    Move[] GetOrderedMoves(Board board, bool capturesOnly = false)
+    private Move[] GetOrderedMoves(Board board, bool capturesOnly = false)
     {
       Move[] moves = board.GetLegalMoves(capturesOnly);
 
-      List<MoveEvaluation> orderedMoves = new();
-      foreach (Move move in moves)
-      {
-        int score = move.IsCapture
-          // ? mvv_lva[(int)move.MovePieceType - 1, (int)move.CapturePieceType - 1]
-          //   + (!board.SquareIsAttackedByOpponent(move.TargetSquare) ? 10700 : 10000)
-          ? (100 * (int)move.CapturePieceType) - (int)move.MovePieceType + 6
-          : 0;
-        orderedMoves.Add(new MoveEvaluation(score, move));
-      }
-
-      return orderedMoves.OrderByDescending(o => o.Score).Select(o => o.Move).ToArray();
+      return moves
+        .OrderByDescending(move =>
+          move.IsCapture
+            ? (100 * (int)move.CapturePieceType) - (int)move.MovePieceType + 6 // MVV_LVA calculation
+            : 0)
+        .ToArray();
     }
 
-    int NegaMax(int depth, Board board, int alpha, int beta, int color/*, string prevMove*/)
+    private int NegaMax(int depth, Board board, int alpha, int beta, int color)
     {
       ulong key = board.ZobristKey;
       int flag = 1, ply = board.PlyCount;
 
-      int? entry = TranspositionTable.Get(key, depth, alpha, beta, ply);
+      int? entry = transpositionTable.Get(key, depth, alpha, beta, ply);
       if (entry != null)
         return (int)entry;
 
       if (depth == 0)
       {
         int val = Quiescence(board, alpha, beta, color);
-        TranspositionTable.Store(key, val, depth, flag: 0, ply/*, prevMove*/);
+        transpositionTable.Store(key, val, depth, flag: 0, ply);
         return val;
       }
 
       Move[] orderedMoves = GetOrderedMoves(board);
 
-      // string bestMove = prevMove;
       foreach (Move move in orderedMoves)
       {
-        // string currentMove = move.StartSquare.Name + move.TargetSquare.Name;
-        int score = MakeMove(board, move, depth - 1, alpha, beta, color);
+        int score = MakeAndUndoMove(board, move, depth - 1, alpha, beta, color);
 
         if (score >= beta)
         {
-          TranspositionTable.Store(key, beta, depth, flag: 2, ply/*, currentMove*/);
+          transpositionTable.Store(key, beta, depth, flag: 2, ply);
           return beta;
         }
 
         if (score > alpha)
         {
-          // bestMove = currentMove;
           flag = 0;
           alpha = score;
         }
       }
 
-      TranspositionTable.Store(key, alpha, depth, flag, ply/*, bestMove*/);
+      transpositionTable.Store(key, alpha, depth, flag, ply);
       return alpha;
     }
 
-    int Quiescence(Board board, int alpha, int beta, int color)
+    private int Quiescence(Board board, int alpha, int beta, int color)
     {
       int eval = color * board.GetAllPieceLists()
         .SelectMany(pieces => pieces)
@@ -222,7 +199,16 @@ namespace MyBot4
       foreach (Move move in orderedMoves)
       {
         board.MakeMove(move);
-        Nodes++;
+        nodes++;
+
+        // int seeScore = SEE(board, move);
+
+        // if (eval + seeScore >= beta)
+        // {
+        //   board.UndoMove(move);
+        //   return beta;
+        // }
+
         int score = -Quiescence(board, -beta, -alpha, -color);
         board.UndoMove(move);
 
@@ -235,5 +221,49 @@ namespace MyBot4
 
       return alpha;
     }
+
+    // private int SEE(Board board, Move move)
+    // {
+    //   int score = 0;
+
+    //   if (!move.IsCapture)
+    //     return score;
+
+    //   int capturedValue = PieceVal[move.CapturePieceType];
+    //   int attackerValue = PieceVal[move.MovePieceType];
+
+    //   Square targetSquare = move.TargetSquare;
+    //   int ply = board.PlyCount;
+
+    //   for (int newAttackerValue = capturedValue; newAttackerValue <= attackerValue; newAttackerValue += 100)
+    //   {
+    //     score = Math.Max(score, newAttackerValue - SEE(move, board, targetSquare, newAttackerValue - capturedValue, ply));
+    //   }
+
+    //   return score;
+    // }
+
+    // private int SEE(Move move, Board board, Square targetSquare, int gain, int ply)
+    // {
+    //   int score = Math.Max(0, gain);
+
+
+    //   foreach (Piece attacker in board.SquareIsAttackedByOpponent(targetSquare))
+    //   {
+    //     int attackerValue = PieceVal[attacker.PieceType];
+    //     int capturedValue = PieceVal[targetSquare?.PieceType ?? PieceType.None];
+    //     int newGain = attackerValue - capturedValue;
+
+    //     if (newGain > gain)
+    //     {
+    //       board.MakeMove(move);
+    //       score = Math.Max(score, newGain - SEE(board, targetSquare, newGain, ply));
+    //       board.UndoMove(move);
+    //     }
+    //   }
+
+    //   return score;
+    // }
+
   }
 }
