@@ -3,24 +3,22 @@ using System.Collections.Generic;
 using System.Linq;
 using ChessChallenge.API;
 
-// 884
+// 963 / 1024 (+26 for Node counting)
 namespace MyBot4
 {
-  public record Transposition(int Score, byte Depth, byte Flag); // ~6 bytes per record
+  public record Transposition(int Score, byte Depth, byte Flag, LinkedListNode<ulong> Node); // ~6 bytes per record
 
   public class TranspositionTable
   {
-    private readonly SortedDictionary<ulong, Transposition> table = new();
-    private readonly int maxTableSize = 2000000; // 256mb / 6 bytes = ~24,000,000 records is the upper bound
+    private readonly Dictionary<ulong, Transposition> table = new();
+    private readonly LinkedList<ulong> evictionQueue = new();
+    private readonly int maxTableSize = 5000000; // 256mb / 6 bytes = ~24,000,000 records is the upper bound
 
     public int? Get(ulong key, int depth, int alpha, int beta, int ply)
     {
       if (table.TryGetValue(key, out var entry) && entry.Depth >= depth)
       {
-        // Remove the entry and put it on the end to maintain order
-        table.Remove(key);
-        table.Add(key, entry);
-
+        MoveToEnd(entry.Node);
         int score = AdjustScore(entry.Score, ply);
 
         if (entry.Flag == 0)
@@ -40,16 +38,36 @@ namespace MyBot4
       score = AdjustScore(score, -ply);
 
       if (table.TryGetValue(key, out var existingEntry))
+      {
         // Replace on Depth if the new entry has higher depth, or always replace if it's the same
         if (depth >= existingEntry.Depth)
-          table[key] = new Transposition(score, (byte)depth, (byte)flag);
-        else
-          table.Add(key, new Transposition(score, (byte)depth, (byte)flag));
+        {
+          MoveToEnd(existingEntry.Node);
+          table[key] = new(score, (byte)depth, (byte)flag, existingEntry.Node);
+        }
+      }
+      else
+      {
+        var node = evictionQueue.AddLast(key);
+        table.Add(key, new(score, (byte)depth, (byte)flag, node));
+      }
 
-      while (table.Count > maxTableSize)
-        table.Remove(table.Keys.First());
+      // Trim excess
+      if (table.Count >= maxTableSize)
+      {
+        ulong oldestKey = evictionQueue.First.Value;
+        table.Remove(oldestKey);
+        evictionQueue.RemoveFirst();
+      }
     }
 
+    private void MoveToEnd(LinkedListNode<ulong> node)
+    {
+      evictionQueue.Remove(node);
+      evictionQueue.AddLast(node);
+    }
+
+    // We need to take into consideration "soon to be check" moves need to be independent of play
     private int AdjustScore(int score, int ply)
     {
       if (score < -90000) score += ply;
@@ -92,14 +110,15 @@ namespace MyBot4
         return moves;
 
       List<Move> bestMoves = new();
-
       int bestScore = alpha;
+
       foreach (Move move in moves)
       {
         int score = MakeAndUndoMove(board, move, depth, alpha, beta, color);
 
         if (score == bestScore)
           bestMoves.Add(move);
+
         else if (score > bestScore)
         {
           bestScore = score;
@@ -152,6 +171,16 @@ namespace MyBot4
       if (entry != null)
         return (int)entry;
 
+      // if in check, increase depth?
+
+      // int eval = color * board.GetAllPieceLists()
+      //   .SelectMany(pieces => pieces)
+      //   .Sum(piece => (piece.IsWhite ? 1 : -1) * PieceVal[piece.PieceType]);
+
+      // int delta = 100; // Adjust this value as needed
+      // if (eval + delta <= alpha)
+      //   return alpha;
+
       if (depth == 0)
       {
         int val = Quiescence(board, alpha, beta, color);
@@ -182,17 +211,20 @@ namespace MyBot4
       return alpha;
     }
 
-    private int Quiescence(Board board, int alpha, int beta, int color)
+    private int Quiescence(Board board, int alpha, int beta, int color, int depth = 3)
     {
+      int? entry = transpositionTable.Get(board.ZobristKey, depth, alpha, beta, board.PlyCount);
+      if (entry != null)
+        return (int)entry;
+
       int eval = color * board.GetAllPieceLists()
         .SelectMany(pieces => pieces)
         .Sum(piece => (piece.IsWhite ? 1 : -1) * PieceVal[piece.PieceType]);
 
-      if (eval >= beta)
-        return beta;
+      if (depth == 0 || eval >= beta)
+        return eval;
 
-      if (eval > alpha)
-        alpha = eval;
+      alpha = Math.Max(alpha, eval); // Update alpha with the stand-pat evaluation
 
       Move[] orderedMoves = GetOrderedMoves(board, true);
 
@@ -209,18 +241,28 @@ namespace MyBot4
         //   return beta;
         // }
 
-        int score = -Quiescence(board, -beta, -alpha, -color);
+        int score = -Quiescence(board, -beta, -alpha, -color, depth - 1);
         board.UndoMove(move);
 
         if (score >= beta)
-          return beta;
+          return beta; // Fail-hard beta cutoff
 
-        if (score > alpha)
-          alpha = score;
+        alpha = Math.Max(alpha, score); // Update alpha with the stand-pat evaluation
+
+        int delta = score - eval;
+        if (delta > 0 && delta >= 100) // Delta pruning condition, adjust the threshold as needed
+          break; // Stop searching if the improvement is significant
       }
 
       return alpha;
     }
+
+
+
+
+
+
+
 
     // private int SEE(Board board, Move move)
     // {
