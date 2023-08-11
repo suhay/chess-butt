@@ -209,17 +209,16 @@ namespace ChessChallenge.Application
     {
       return type switch
       {
-        PlayerType.MyBot => new ChessPlayer(new MyBot(), type),
-        // PlayerType.EvilBot => new ChessPlayer(new EvilBot(), type, GameDurationMilliseconds),
-        PlayerType.EvilBot => new ChessPlayer(new EvilBot(), type),
-        PlayerType.TestBot => new ChessPlayer(new TestBot(), type),
+        PlayerType.MyBot => new ChessPlayer(new MyBot(), type, GameDurationMilliseconds),
+        PlayerType.EvilBot => new ChessPlayer(new EvilBot(), type, GameDurationMilliseconds),
+        PlayerType.TestBot => new ChessPlayer(new TestBot(), type, GameDurationMilliseconds),
         _ => new ChessPlayer(new HumanPlayer(boardUI), type)
       };
     }
 
     static (int totalTokenCount, int debugTokenCount) GetTokenCount()
     {
-      string path = Path.Combine(Directory.GetCurrentDirectory(), "src", "My Bot", "MyBot4", "MyBot4.cs");
+      string path = Path.Combine(Directory.GetCurrentDirectory(), "src", "My Bot", "MyBot5", "MyBot5.cs");
 
       using StreamReader reader = new(path);
       string txt = reader.ReadToEnd();

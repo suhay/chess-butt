@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using ChessChallenge.API;
 
-// 1014 / 1024 (+26 for Node counting)
-namespace MyBot4
+// 924 / 1024
+namespace MyBot4_4_RC1
 {
   public record Transposition(int Score, byte Depth, byte Flag, LinkedListNode<ulong> Node); // ~6 bytes per record
 
@@ -28,13 +28,6 @@ namespace MyBot4
           2 when score >= beta => beta,
           _ => null
         };
-
-        // if (entry.Flag == 0)
-        //   return score;
-        // else if (entry.Flag == 1 && score <= alpha)
-        //   return alpha;
-        // else if (entry.Flag == 2 && score >= beta)
-        //   return beta;
       }
 
       return null;
@@ -87,29 +80,12 @@ namespace MyBot4
   public class MyBot : IChessBot
   {
     private int Inf = int.MaxValue;
-    private int Depth = 4;
+    private int Depth = 3;
     private readonly int[] PieceVal = new int[] { 0, 100, 300, 300, 500, 900, 0 }; // No, P, N, B, R, Q, K
     private readonly TranspositionTable transpositionTable = new();
-    private int nodes;
 
     public Move Think(Board board, Timer timer)
     {
-      nodes = 0;
-      // Move bestMove = new();
-
-      // for (int currentDepth = 1; currentDepth <= Depth; currentDepth++)
-      // {
-      //   Move[] bestMoves = NegaMaxRoot(board, currentDepth, -Inf, Inf, board.IsWhiteToMove ? 1 : -1);
-      //   // if (timer.ElapsedMilliseconds >= TimeLimitMilliseconds)
-      //   //     break;
-      //   bestMove = bestMoves[0]; // Store the best move from the current depth
-      // }
-
-      // Console.WriteLine("Nodes: {0}", nodes);
-      // return bestMove;
-
-      /////////////////////////
-
       Move[] moves = GetOrderedMoves(board);
       List<Move> bestMoves = new(moves);
       int bestScore = -Inf;
@@ -134,14 +110,12 @@ namespace MyBot4
 
       Random rng = new();
       Move nextMove = bestMoves[rng.Next(bestMoves.Count)];
-      Console.WriteLine("Nodes: {0}", nodes);
       return nextMove;
     }
 
     private int MakeAndUndoMove(Board board, Move move, int depth, int alpha, int beta, int color)
     {
       board.MakeMove(move);
-      nodes++;
       if (board.IsInCheckmate())
       {
         board.UndoMove(move);
@@ -157,12 +131,10 @@ namespace MyBot4
     private Move[] GetOrderedMoves(Board board, bool capturesOnly = false)
     {
       Move[] moves = board.GetLegalMoves(capturesOnly);
-
       return moves
         .OrderByDescending(move =>
           move.IsCapture // MVV_LVA algebra calculation
             ? (100 * (int)move.CapturePieceType) - (int)move.MovePieceType + 6
-            // + (!board.SquareIsAttackedByOpponent(move.TargetSquare) ? 700 : 0) // 26:54:20 
             : 0)
         .ToArray();
     }
@@ -195,7 +167,6 @@ namespace MyBot4
       }
 
       Move[] orderedMoves = GetOrderedMoves(board);
-
       foreach (Move move in orderedMoves)
       {
         int score = MakeAndUndoMove(board, move, depth - 1, alpha, beta, color);
@@ -233,20 +204,9 @@ namespace MyBot4
       alpha = Math.Max(alpha, eval); // Update alpha with the stand-pat evaluation
 
       Move[] orderedMoves = GetOrderedMoves(board, true);
-
       foreach (Move move in orderedMoves)
       {
         board.MakeMove(move);
-        nodes++;
-
-        // int seeScore = SEE(board, move);
-
-        // if (eval + seeScore >= beta)
-        // {
-        //   board.UndoMove(move);
-        //   return beta;
-        // }
-
         int score = -Quiescence(board, -beta, -alpha, -color, depth - 1);
         board.UndoMove(move);
 
@@ -262,73 +222,5 @@ namespace MyBot4
 
       return alpha;
     }
-
-    // private int SEE() {
-    //   int score = 0;
-    //   int capturedValue = PieceVal[move.CapturePieceType];
-    //   int attackerValue = PieceVal[move.MovePieceType];
-
-    //   piece = get_smallest_attacker(square, side);
-
-
-    //    /* skip if the square isn't attacked anymore by this side */
-    //    if ( piece )
-    //    {
-    //       make_capture(piece, square);
-    //       /* Do not consider captures if they lose material, therefor max zero */
-    //       value = max (0, piece_just_captured() -see(square, other(side)) );
-    //       undo_capture(piece, square);
-    //    }
-    //    return value;
-    // }
-
-
-
-
-
-
-    // private int SEE(Board board, Move move)
-    // {
-    //   int score = 0;
-
-    //   if (!move.IsCapture)
-    //     return score;
-
-    //   int capturedValue = PieceVal[move.CapturePieceType];
-    //   int attackerValue = PieceVal[move.MovePieceType];
-
-    //   Square targetSquare = move.TargetSquare;
-    //   int ply = board.PlyCount;
-
-    //   for (int newAttackerValue = capturedValue; newAttackerValue <= attackerValue; newAttackerValue += 100)
-    //   {
-    //     score = Math.Max(score, newAttackerValue - SEE(move, board, targetSquare, newAttackerValue - capturedValue, ply));
-    //   }
-
-    //   return score;
-    // }
-
-    // private int SEE(Move move, Board board, Square targetSquare, int gain, int ply)
-    // {
-    //   int score = Math.Max(0, gain);
-
-
-    //   foreach (Piece attacker in board.SquareIsAttackedByOpponent(targetSquare))
-    //   {
-    //     int attackerValue = PieceVal[attacker.PieceType];
-    //     int capturedValue = PieceVal[targetSquare?.PieceType ?? PieceType.None];
-    //     int newGain = attackerValue - capturedValue;
-
-    //     if (newGain > gain)
-    //     {
-    //       board.MakeMove(move);
-    //       score = Math.Max(score, newGain - SEE(board, targetSquare, newGain, ply));
-    //       board.UndoMove(move);
-    //     }
-    //   }
-
-    //   return score;
-    // }
-
   }
 }

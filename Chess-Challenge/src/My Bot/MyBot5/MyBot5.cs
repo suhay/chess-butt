@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using ChessChallenge.API;
 
-// 1014 / 1024 (+26 for Node counting)
-namespace MyBot4
-{
+// 950 / 1024 (+26 for Node counting)
+namespace MyBot5  // #DEBUG
+{  // #DEBUG
   public record Transposition(int Score, byte Depth, byte Flag, LinkedListNode<ulong> Node); // ~6 bytes per record
 
   public class TranspositionTable
@@ -14,12 +14,12 @@ namespace MyBot4
     private readonly LinkedList<ulong> evictionQueue = new();
     private readonly int maxTableSize = 5000000; // 256mb / 6 bytes = ~24,000,000 records is the upper bound
 
-    public int? Get(ulong key, int depth, int alpha, int beta, int ply)
+    public int? Get(ulong key, int depth, int alpha, int beta)
     {
       if (table.TryGetValue(key, out var entry) && entry.Depth >= depth)
       {
         MoveToEnd(entry.Node);
-        int score = AdjustScore(entry.Score, ply);
+        int score = entry.Score;
 
         return entry.Flag switch
         {
@@ -28,23 +28,14 @@ namespace MyBot4
           2 when score >= beta => beta,
           _ => null
         };
-
-        // if (entry.Flag == 0)
-        //   return score;
-        // else if (entry.Flag == 1 && score <= alpha)
-        //   return alpha;
-        // else if (entry.Flag == 2 && score >= beta)
-        //   return beta;
       }
 
       return null;
     }
 
     // Flag: 0 = Exact, 1 = Alpha, 2 = Beta
-    public void Store(ulong key, int score, int depth, int flag, int ply)
+    public void Store(ulong key, int score, int depth, int flag)
     {
-      score = AdjustScore(score, -ply);
-
       if (table.TryGetValue(key, out var existingEntry))
       {
         // Replace on Depth if the new entry has higher depth, or always replace if it's the same
@@ -74,27 +65,59 @@ namespace MyBot4
       evictionQueue.Remove(node);
       evictionQueue.AddLast(node);
     }
-
-    // We need to take into consideration "soon to be check" moves need to be independent of play
-    private int AdjustScore(int score, int ply)
-    {
-      if (score < -90000) score += ply;
-      if (score > 90000) score -= ply;
-      return score;
-    }
   }
 
   public class MyBot : IChessBot
   {
     private int Inf = int.MaxValue;
-    private int Depth = 4;
+    private int Depth = 3;
+    private int Ply = 0;
     private readonly int[] PieceVal = new int[] { 0, 100, 300, 300, 500, 900, 0 }; // No, P, N, B, R, Q, K
     private readonly TranspositionTable transpositionTable = new();
-    private int nodes;
+    Dictionary<int, Move> K1 = new();
+    Dictionary<int, Move> K2 = new();
+    private int nodes; // #DEBUG
 
     public Move Think(Board board, Timer timer)
     {
-      nodes = 0;
+      nodes = 0; // #DEBUG
+      Ply = 0;
+      // int currentDepth = 1;
+      // Move[] moves = GetOrderedMoves(board);
+      // List<Move> bestMoves = new(moves);
+      // int bestScore = -Inf;
+
+      // while (currentDepth <= Depth)
+      // {
+      //   foreach (Move move in moves)
+      //   {
+      //     int score = MakeAndUndoMove(board, move, currentDepth, -Inf, Inf, board.IsWhiteToMove ? 1 : -1);
+
+      //     if (score == bestScore)
+      //       bestMoves.Add(move);
+
+      //     else if (score > bestScore)
+      //     {
+      //       bestScore = score;
+      //       bestMoves.Clear();
+      //       bestMoves.Add(move);
+
+      //       if (score == 100000)
+      //         break;
+      //     }
+      //   }
+      //   currentDepth++;
+      // }
+
+      // Random rng = new();
+      // Move nextMove = bestMoves[rng.Next(bestMoves.Count)];
+      // Console.WriteLine("Nodes: {0}, Moves: {1}", nodes, bestMoves.Count);
+      // return nextMove;
+
+
+
+
+
       // Move bestMove = new();
 
       // for (int currentDepth = 1; currentDepth <= Depth; currentDepth++)
@@ -110,9 +133,51 @@ namespace MyBot4
 
       /////////////////////////
 
+      //   int currentDepth = 1;
+      //   Move bestMove = new();
+
+      //   while (currentDepth <= Depth)
+      //   {
+      //     int guess = (alpha + beta) / 2;
+      // int score = MTD(board, guess, currentDepth);
+
+      //     Move[] moves = GetOrderedMoves(board);
+      //     List<Move> bestMoves = new(moves);
+      //     int bestScore = -Inf;
+
+      //     foreach (Move move in moves)
+      //     {
+      //       int score = MakeAndUndoMove(board, move, currentDepth, -Inf, Inf, board.IsWhiteToMove ? 1 : -1);
+
+      //       if (score == bestScore)
+      //         bestMoves.Add(move);
+
+      //       else if (score > bestScore)
+      //       {
+      //         bestScore = score;
+      //         bestMoves.Clear();
+      //         bestMoves.Add(move);
+
+      //         if (score == 100000)
+      //           break;
+      //       }
+      //     }
+
+      //     bestMove = bestMoves[0];
+      //     currentDepth++; // Increase depth for the next iteration
+      //   }
+
+      //   Console.WriteLine("Nodes: {0}", Nodes);
+      //   return bestMove;
+
+      /////////////////////////
+
       Move[] moves = GetOrderedMoves(board);
       List<Move> bestMoves = new(moves);
       int bestScore = -Inf;
+
+      K1.Clear();
+      K2.Clear();
 
       foreach (Move move in moves)
       {
@@ -134,21 +199,39 @@ namespace MyBot4
 
       Random rng = new();
       Move nextMove = bestMoves[rng.Next(bestMoves.Count)];
-      Console.WriteLine("Nodes: {0}", nodes);
+      Console.WriteLine("Nodes: {0}, Moves: {1}", nodes, bestMoves.Count); // #DEBUG
       return nextMove;
     }
+    // int MTD(int depth, Board board, int guess, int color)
+    // {
+    //   int upperBound = Inf;
+    //   int lowerBound = -Inf;
 
+    //   while (lowerBound < upperBound)
+    //   {
+    //     int beta = Math.Max(guess, lowerBound + 1);
+    //     guess = NegaMax(depth, board, beta - 1, beta, color);
+
+    //     if (guess < beta)
+    //       upperBound = guess;
+    //     else
+    //       lowerBound = guess;
+    //   }
+
+    //   return guess;
+    // }
     private int MakeAndUndoMove(Board board, Move move, int depth, int alpha, int beta, int color)
     {
       board.MakeMove(move);
-      nodes++;
+      nodes++; // #DEBUG
       if (board.IsInCheckmate())
       {
         board.UndoMove(move);
-        return depth == Depth ? 100000 : 90000 + board.PlyCount;
+        return depth == Depth ? 100000 : 90000 + depth;
       }
-
+      Ply++;
       int score = -NegaMax(depth, board, -beta, -alpha, -color);
+      Ply--;
       board.UndoMove(move);
 
       return score;
@@ -160,19 +243,24 @@ namespace MyBot4
 
       return moves
         .OrderByDescending(move =>
-          move.IsCapture // MVV_LVA algebra calculation
-            ? (100 * (int)move.CapturePieceType) - (int)move.MovePieceType + 6
-            // + (!board.SquareIsAttackedByOpponent(move.TargetSquare) ? 700 : 0) // 26:54:20 
-            : 0)
+        {
+          if (move.IsCapture)
+            return (100 * (int)move.CapturePieceType) - (int)move.MovePieceType + 10006;
+          if (K1.ContainsKey(Ply) && K1[Ply] == move)
+            return 9000;
+          if (K2.ContainsKey(Ply) && K2[Ply] == move)
+            return 8000;
+          return 0;
+        })
         .ToArray();
     }
 
     private int NegaMax(int depth, Board board, int alpha, int beta, int color)
     {
       ulong key = board.ZobristKey;
-      int flag = 1, ply = board.PlyCount;
+      int flag = 1;
 
-      int? entry = transpositionTable.Get(key, depth, alpha, beta, ply);
+      int? entry = transpositionTable.Get(key, depth, alpha, beta);
       if (entry != null)
         return (int)entry;
 
@@ -181,17 +269,20 @@ namespace MyBot4
       if (depth == 0)
       {
         int val = Quiescence(board, alpha, beta, color);
-        transpositionTable.Store(key, val, depth, flag: 0, ply);
+        transpositionTable.Store(key, val, depth, flag: 0);
         return val;
       }
 
-      // Null move pruning. With R = 2, Depth will need to be > 4 for this to run
-      if (ply <= 70 && depth >= 3 && board.TrySkipTurn())
+      // Null move pruning. With R = 2, Depth will need to be > 4 for this to run beyond evaluating the next position
+      if (board.PlyCount <= 70 && depth >= 3 && board.TrySkipTurn())
       {
         int nullScore = -NegaMax(depth - 1 - 2, board, -beta, -beta + 1, -color);
         board.UndoSkipTurn();
         if (nullScore >= beta)
+        {
+          Console.WriteLine(".");
           return beta;
+        }
       }
 
       Move[] orderedMoves = GetOrderedMoves(board);
@@ -202,7 +293,13 @@ namespace MyBot4
 
         if (score >= beta)
         {
-          transpositionTable.Store(key, beta, depth, flag: 2, ply);
+          if (!move.IsCapture)
+          {
+            if (K1.ContainsKey(Ply)) K2[Ply] = K1[Ply];
+            K1[Ply] = move;
+          }
+
+          transpositionTable.Store(key, beta, depth, flag: 2);
           return beta; // soft vs hard
         }
 
@@ -213,31 +310,35 @@ namespace MyBot4
         }
       }
 
-      transpositionTable.Store(key, alpha, depth, flag, ply);
+      transpositionTable.Store(key, alpha, depth, flag);
       return alpha;
     }
 
     private int Quiescence(Board board, int alpha, int beta, int color, int depth = 3)
     {
-      int? entry = transpositionTable.Get(board.ZobristKey, depth, alpha, beta, board.PlyCount);
+      int? entry = transpositionTable.Get(board.ZobristKey, depth, alpha, beta);
       if (entry != null)
         return (int)entry;
 
+      Move[] orderedMoves = GetOrderedMoves(board, true);
+
       int eval = color * board.GetAllPieceLists()
         .SelectMany(pieces => pieces)
-        .Sum(piece => (piece.IsWhite ? 1 : -1) * PieceVal[(int)piece.PieceType]);
+        .Sum(piece => (piece.IsWhite ? 1 : -1) *
+          (PieceVal[(int)piece.PieceType]
+            + orderedMoves.Length)
+            );
 
       if (depth == 0 || eval >= beta)
         return eval;
 
       alpha = Math.Max(alpha, eval); // Update alpha with the stand-pat evaluation
 
-      Move[] orderedMoves = GetOrderedMoves(board, true);
-
       foreach (Move move in orderedMoves)
       {
         board.MakeMove(move);
-        nodes++;
+        Ply++;
+        nodes++; // #DEBUG
 
         // int seeScore = SEE(board, move);
 
@@ -249,6 +350,7 @@ namespace MyBot4
 
         int score = -Quiescence(board, -beta, -alpha, -color, depth - 1);
         board.UndoMove(move);
+        Ply--;
 
         if (score >= beta)
           return beta; // Fail-hard beta cutoff
@@ -331,4 +433,4 @@ namespace MyBot4
     // }
 
   }
-}
+} // #DEBUG
