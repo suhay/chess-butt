@@ -4,7 +4,7 @@ using System.Linq;
 using ChessChallenge.API;
 
 // 969 / 1024
-namespace MyBot5  // #DEBUG
+namespace MyBot5_2  // #DEBUG
 {  // #DEBUG
   public record Transposition(int Score, byte Depth, byte Flag, LinkedListNode<ulong> Node, ushort Move); // ~6 bytes per record
 
@@ -69,15 +69,14 @@ namespace MyBot5  // #DEBUG
 
   public class MyBot : IChessBot
   {
-    private readonly int Inf = int.MaxValue;
-    private readonly int Depth = 3;
+    private int Inf = int.MaxValue;
+    private int Depth = 3;
     private int Ply = 0;
     private readonly int[] PieceVal = new int[] { 0, 100, 300, 300, 500, 900, 0 }; // No, P, N, B, R, Q, K
-    private int nodes; // #DEBUG
-
     private readonly TranspositionTable transpositionTable = new();
-    private readonly Dictionary<int, Move> K1 = new();
-    private readonly Dictionary<int, Move> K2 = new();
+    Dictionary<int, Move> K1 = new();
+    Dictionary<int, Move> K2 = new();
+    private int nodes; // #DEBUG
 
     public Move Think(Board board, Timer timer)
     {
@@ -173,15 +172,15 @@ namespace MyBot5  // #DEBUG
 
       /////////////////////////
 
+      K1.Clear();
+      K2.Clear();
+
       Move[] moves = GetOrderedMoves(board);
       List<Move> bestMoves = new(moves);
       int bestScore = -Inf;
 
       foreach (Move move in moves)
       {
-        K1.Clear();
-        K2.Clear();
-
         int score = MakeAndUndoMove(board, move, Depth, -Inf, Inf, board.IsWhiteToMove ? 1 : -1);
 
         if (score == bestScore)
@@ -231,8 +230,8 @@ namespace MyBot5  // #DEBUG
       }
       Ply++;
       int score = -NegaMax(depth, board, -beta, -alpha, -color);
-      board.UndoMove(move);
       Ply--;
+      board.UndoMove(move);
 
       return score;
     }
@@ -274,7 +273,7 @@ namespace MyBot5  // #DEBUG
       if (depth == 0)
       {
         int val = Quiescence(board, alpha, beta, color);
-        transpositionTable.Store(key, val, depth, flag: 0, 0); // no best move to store, at leaf
+        transpositionTable.Store(key, val, depth, flag: 0, 0);
         return val;
       }
 
@@ -315,7 +314,7 @@ namespace MyBot5  // #DEBUG
         }
       }
 
-      transpositionTable.Store(key, alpha, depth, flag, 0); // no best move, they were all pretty bad
+      transpositionTable.Store(key, alpha, depth, flag, 0);
       return alpha;
     }
 
@@ -330,16 +329,14 @@ namespace MyBot5  // #DEBUG
       int eval = color * board.GetAllPieceLists()
         .SelectMany(pieces => pieces)
         .Sum(piece => (piece.IsWhite ? 1 : -1) *
-              (
-                PieceVal[(int)piece.PieceType]
-                + (orderedMoves.Length * 10)
-              )
+          (PieceVal[(int)piece.PieceType]
+            + (orderedMoves.Length * 10))
             );
 
       if (depth == 0 || eval >= beta)
         return eval;
 
-      alpha = Math.Max(alpha, eval); // update alpha with the evaluation
+      alpha = Math.Max(alpha, eval); // Update alpha with the stand-pat evaluation
 
       foreach (Move move in orderedMoves)
       {
@@ -362,7 +359,7 @@ namespace MyBot5  // #DEBUG
         if (score >= beta)
           return beta; // Fail-hard beta cutoff
 
-        alpha = Math.Max(alpha, score); // Update alpha with the score
+        alpha = Math.Max(alpha, score); // Update alpha with the stand-pat evaluation
 
         int delta = score - eval;
         if (delta > 0 && delta >= 100) // Delta pruning condition, adjust the threshold as needed

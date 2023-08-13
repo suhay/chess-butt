@@ -4,7 +4,7 @@ using System.Linq;
 using ChessChallenge.API;
 
 // 969 / 1024
-namespace MyBot5  // #DEBUG
+namespace MyBot6  // #DEBUG
 {  // #DEBUG
   public record Transposition(int Score, byte Depth, byte Flag, LinkedListNode<ulong> Node, ushort Move); // ~6 bytes per record
 
@@ -79,147 +79,75 @@ namespace MyBot5  // #DEBUG
     private readonly Dictionary<int, Move> K1 = new();
     private readonly Dictionary<int, Move> K2 = new();
 
+    // Each beam needs the root node, the relative scores (eval, alpha, beta), killer moves, tbe ordered moves at depth for
+    // subsequent iterative deepenings
+    // readonly Dictionary<int, Move> Beams = new();
+
     public Move Think(Board board, Timer timer)
     {
       nodes = 0; // #DEBUG
       Ply = 0;
-      // int currentDepth = 1;
-      // Move[] moves = GetOrderedMoves(board);
-      // List<Move> bestMoves = new(moves);
-      // int bestScore = -Inf;
-
-      // while (currentDepth <= Depth)
-      // {
-      //   foreach (Move move in moves)
-      //   {
-      //     int score = MakeAndUndoMove(board, move, currentDepth, -Inf, Inf, board.IsWhiteToMove ? 1 : -1);
-
-      //     if (score == bestScore)
-      //       bestMoves.Add(move);
-
-      //     else if (score > bestScore)
-      //     {
-      //       bestScore = score;
-      //       bestMoves.Clear();
-      //       bestMoves.Add(move);
-
-      //       if (score == 100000)
-      //         break;
-      //     }
-      //   }
-      //   currentDepth++;
-      // }
-
-      // Random rng = new();
-      // Move nextMove = bestMoves[rng.Next(bestMoves.Count)];
-      // Console.WriteLine("Nodes: {0}, Moves: {1}", nodes, bestMoves.Count);
-      // return nextMove;
 
 
-
-
-
-      // Move bestMove = new();
-
-      // for (int currentDepth = 1; currentDepth <= Depth; currentDepth++)
-      // {
-      //   Move[] bestMoves = NegaMaxRoot(board, currentDepth, -Inf, Inf, board.IsWhiteToMove ? 1 : -1);
-      //   // if (timer.ElapsedMilliseconds >= TimeLimitMilliseconds)
-      //   //     break;
-      //   bestMove = bestMoves[0]; // Store the best move from the current depth
-      // }
-
-      // Console.WriteLine("Nodes: {0}", nodes);
-      // return bestMove;
-
-      /////////////////////////
-
-      //   int currentDepth = 1;
-      //   Move bestMove = new();
-
-      //   while (currentDepth <= Depth)
-      //   {
-      //     int guess = (alpha + beta) / 2;
-      // int score = MTD(board, guess, currentDepth);
-
-      //     Move[] moves = GetOrderedMoves(board);
-      //     List<Move> bestMoves = new(moves);
-      //     int bestScore = -Inf;
-
-      //     foreach (Move move in moves)
-      //     {
-      //       int score = MakeAndUndoMove(board, move, currentDepth, -Inf, Inf, board.IsWhiteToMove ? 1 : -1);
-
-      //       if (score == bestScore)
-      //         bestMoves.Add(move);
-
-      //       else if (score > bestScore)
-      //       {
-      //         bestScore = score;
-      //         bestMoves.Clear();
-      //         bestMoves.Add(move);
-
-      //         if (score == 100000)
-      //           break;
-      //       }
-      //     }
-
-      //     bestMove = bestMoves[0];
-      //     currentDepth++; // Increase depth for the next iteration
-      //   }
-
-      //   Console.WriteLine("Nodes: {0}", Nodes);
-      //   return bestMove;
-
-      /////////////////////////
 
       Move[] moves = GetOrderedMoves(board);
-      List<Move> bestMoves = new(moves);
+      List<Move> bestMoves = new(moves); // If we store the move with the most recent score, also aspiration windows
       int bestScore = -Inf;
+      int currentDepth = 0;
 
-      foreach (Move move in moves)
+      try
       {
-        K1.Clear();
-        K2.Clear();
-
-        int score = MakeAndUndoMove(board, move, Depth, -Inf, Inf, board.IsWhiteToMove ? 1 : -1);
-
-        if (score == bestScore)
-          bestMoves.Add(move);
-
-        else if (score > bestScore)
+        //   do
+        //   {
+        foreach (Move move in moves)
         {
-          bestScore = score;
-          bestMoves.Clear();
-          bestMoves.Add(move);
+          K1.Clear();
+          K2.Clear();
+          int score = MakeAndUndoMove(board, move, Depth, -Inf, Inf, board.IsWhiteToMove ? 1 : -1);
 
-          if (score == 100000)
-            break;
+          if (score == bestScore)
+            bestMoves.Add(move);
+
+          else if (score > bestScore)
+          {
+            bestScore = score;
+            bestMoves.Clear();
+            bestMoves.Add(move);
+
+            if (score == 100000)
+              break;
+          }
+
+          // if (timer.ElapsedMilliseconds >= TimeLimitMilliseconds)
+          //   throw new Exception("Times up");
         }
+        // if ((val <= alpha) || (val >= beta))
+        // {
+        //   alpha = -INFINITY;    // We fell outside the window, so try again with a
+        //   beta = INFINITY;      //  full-width window (and the same depth).
+        //   continue;
+        // }
+
+        // alpha = val - valWINDOW;  // Set up the window for the next iteration.
+        // beta = val + valWINDOW;
+        // depth++;
+
+        // currentDepth++;
+        // split the moves for deeper looking and reorder them
+        // } while (currentDepth <= Depth);
+      }
+      catch (Exception e)
+      {
+        // ejected from search, bring score and move along
       }
 
       Random rng = new();
       Move nextMove = bestMoves[rng.Next(bestMoves.Count)];
+      Console.WriteLine("Nodes: {0}, Moves: {1}", nodes, bestMoves.Count); // #DEBUG
       return nextMove;
     }
-    // int MTD(int depth, Board board, int guess, int color)
-    // {
-    //   int upperBound = Inf;
-    //   int lowerBound = -Inf;
 
-    //   while (lowerBound < upperBound)
-    //   {
-    //     int beta = Math.Max(guess, lowerBound + 1);
-    //     guess = NegaMax(depth, board, beta - 1, beta, color);
-
-    //     if (guess < beta)
-    //       upperBound = guess;
-    //     else
-    //       lowerBound = guess;
-    //   }
-
-    //   return guess;
-    // }
+    // alpha becomes -beta in the next iteration
     private int MakeAndUndoMove(Board board, Move move, int depth, int alpha, int beta, int color)
     {
       board.MakeMove(move);
@@ -269,7 +197,8 @@ namespace MyBot5  // #DEBUG
       if (entry != null)
         return (int)entry;
 
-      // if in check, increase depth?
+      if (board.IsInCheck())
+        depth++;
 
       if (depth == 0)
       {
@@ -292,8 +221,39 @@ namespace MyBot5  // #DEBUG
 
       Move[] orderedMoves = GetOrderedMoves(board);
 
+      bool firstMove = true;
       foreach (Move move in orderedMoves)
       {
+        //////////// NegaScout
+        // int score;
+        // if (firstMove)
+        // {
+        //   score = MakeAndUndoMove(board, move, depth - 1, alpha, beta, color);
+        //   firstMove = false;
+        // }
+        // else
+        // {
+        //   score = MakeAndUndoMove(board, move, depth - 1, alpha, alpha + 1, color);
+        //   if (alpha < score && score < beta)
+        //     score = MakeAndUndoMove(board, move, depth - 1, score, beta, color);
+        // }
+
+        // if (score > alpha)
+        // {
+        //   flag = 0;
+        //   alpha = score;
+        // }
+
+        // if (alpha >= beta)
+        // {
+        //   transpositionTable.Store(key, beta, depth, flag: 2, move.RawValue);
+        //   return beta;
+        // }
+        ////////////
+
+
+
+        /////////// AlphaBeta
         int score = MakeAndUndoMove(board, move, depth - 1, alpha, beta, color);
 
         if (score >= beta)
@@ -313,6 +273,7 @@ namespace MyBot5  // #DEBUG
           flag = 0;
           alpha = score;
         }
+        ///////////
       }
 
       transpositionTable.Store(key, alpha, depth, flag, 0); // no best move, they were all pretty bad

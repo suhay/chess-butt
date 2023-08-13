@@ -18,7 +18,7 @@ public partial class MyBot : IChessBot
 
   public MyBot()
   {
-    bot = new MyBot5.MyBot();
+    bot = new MyBot6.MyBot();
   }
 
   public Move Think(Board board, Timer timer)
