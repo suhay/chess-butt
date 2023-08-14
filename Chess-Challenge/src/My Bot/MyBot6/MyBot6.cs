@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using ChessChallenge.API;
 
-// 969 / 1024
+// 1103 / 1024
 namespace MyBot6  // #DEBUG
 {  // #DEBUG
   public record Transposition(int Score, byte Depth, byte Flag, LinkedListNode<ulong> Node, ushort Move); // ~6 bytes per record
@@ -12,7 +12,7 @@ namespace MyBot6  // #DEBUG
   {
     public readonly Dictionary<ulong, Transposition> table = new();
     private readonly LinkedList<ulong> evictionQueue = new();
-    private readonly int maxTableSize = 5000000; // 256mb / 6 bytes = ~24,000,000 records is the upper bound
+    private readonly int maxTableSize = 5000000; // # DEBUG 256mb / 6 bytes = ~24,000,000 records is the upper bound
 
     public int? Get(ulong key, int depth, int alpha, int beta)
     {
@@ -73,11 +73,18 @@ namespace MyBot6  // #DEBUG
     private readonly int Depth = 3;
     private int Ply = 0;
     private readonly int[] PieceVal = new int[] { 0, 100, 300, 300, 500, 900, 0 }; // No, P, N, B, R, Q, K
+    private readonly int[] MaxEuwePieceVal = new int[] { 0, 100, 300, 300, 450, 950, 0 }; // #DEBUG No, P, N, B, R, Q, K
     private int nodes; // #DEBUG
 
     private readonly TranspositionTable transpositionTable = new();
     private readonly Dictionary<int, Move> K1 = new();
     private readonly Dictionary<int, Move> K2 = new();
+
+    int DeltaCutoff = 100; // #DEBUG
+    int QDepth = 3; // #DEBUG
+    int MobilityWeight = 10; // #DEBUG
+    int FullDepthMoves = 4; // #DEBUG
+    int ReductionLimit = 3; // #DEBUG
 
     // Each beam needs the root node, the relative scores (eval, alpha, beta), killer moves, tbe ordered moves at depth for
     // subsequent iterative deepenings
@@ -87,8 +94,6 @@ namespace MyBot6  // #DEBUG
     {
       nodes = 0; // #DEBUG
       Ply = 0;
-
-
 
       Move[] moves = GetOrderedMoves(board);
       List<Move> bestMoves = new(moves); // If we store the move with the most recent score, also aspiration windows
@@ -121,6 +126,8 @@ namespace MyBot6  // #DEBUG
           // if (timer.ElapsedMilliseconds >= TimeLimitMilliseconds)
           //   throw new Exception("Times up");
         }
+
+        /////////////////// Aspiration window
         // if ((val <= alpha) || (val >= beta))
         // {
         //   alpha = -INFINITY;    // We fell outside the window, so try again with a
@@ -128,9 +135,10 @@ namespace MyBot6  // #DEBUG
         //   continue;
         // }
 
-        // alpha = val - valWINDOW;  // Set up the window for the next iteration.
-        // beta = val + valWINDOW;
+        // alpha = val - 50;  // Set up the window for the next iteration.
+        // beta = val + 50;
         // depth++;
+        ///////////////////
 
         // currentDepth++;
         // split the moves for deeper looking and reorder them
@@ -152,13 +160,14 @@ namespace MyBot6  // #DEBUG
     {
       board.MakeMove(move);
       nodes++; // #DEBUG
-      if (board.IsInCheckmate())
-      {
-        board.UndoMove(move);
-        return depth == Depth ? 100000 : 90000 + depth;
-      }
       Ply++;
-      int score = -NegaMax(depth, board, -beta, -alpha, -color);
+
+      int score;
+      if (board.IsInCheckmate())
+        score = depth == Depth ? 100000 : 90000 + depth;
+      else
+        score = -NegaMax(depth, board, -beta, -alpha, -color);
+
       board.UndoMove(move);
       Ply--;
 
@@ -202,12 +211,13 @@ namespace MyBot6  // #DEBUG
 
       if (depth == 0)
       {
-        int val = Quiescence(board, alpha, beta, color);
+        int val = Quiescence(board, alpha, beta, color, QDepth);
         transpositionTable.Store(key, val, depth, flag: 0, 0); // no best move to store, at leaf
         return val;
       }
 
-      // Null move pruning. With R = 2, Depth will need to be > 4 for this to run beyond evaluating the next position
+      /////////////////// Null move pruning
+      // With R = 2, Depth will need to be > 4 for this to run beyond evaluating the next position
       // if (board.PlyCount <= 70 && depth >= 3 && board.TrySkipTurn())
       // {
       //   int nullScore = -NegaMax(depth - 1 - 2, board, -beta, -beta + 1, -color);
@@ -215,46 +225,40 @@ namespace MyBot6  // #DEBUG
       //   if (nullScore >= beta)
       //   {
       //     Console.WriteLine(".");
-      //     return beta;
+      //     return nullScore;
       //   }
       // }
+      ///////////////////
 
       Move[] orderedMoves = GetOrderedMoves(board);
 
-      bool firstMove = true;
+      int movesSearched = 0;
       foreach (Move move in orderedMoves)
       {
-        //////////// NegaScout
+        /////////////////// LMR + PVS
         // int score;
-        // if (firstMove)
-        // {
+        // if (movesSearched == 0) // First move, use full-window search
         //   score = MakeAndUndoMove(board, move, depth - 1, alpha, beta, color);
-        //   firstMove = false;
-        // }
         // else
         // {
-        //   score = MakeAndUndoMove(board, move, depth - 1, alpha, alpha + 1, color);
-        //   if (alpha < score && score < beta)
-        //     score = MakeAndUndoMove(board, move, depth - 1, score, beta, color);
+        //   if (movesSearched >= FullDepthMoves && depth >= ReductionLimit && !move.IsCapture && !move.IsPromotion)
+        //     score = MakeAndUndoMove(board, move, depth - 2, alpha, alpha + 1, color);
+        //   else
+        //     score = alpha + 1;
+
+        //   // PVS
+        //   if (score > alpha)
+        //   {
+        //     score = MakeAndUndoMove(board, move, depth - 1, alpha, alpha + 1, color);
+        //     if (alpha < score && score < beta)
+        //       score = MakeAndUndoMove(board, move, depth - 1, alpha, beta, color);
+        //   }
         // }
+        ///////////////////
 
-        // if (score > alpha)
-        // {
-        //   flag = 0;
-        //   alpha = score;
-        // }
-
-        // if (alpha >= beta)
-        // {
-        //   transpositionTable.Store(key, beta, depth, flag: 2, move.RawValue);
-        //   return beta;
-        // }
-        ////////////
-
-
-
-        /////////// AlphaBeta
+        /////////////////// AlphaBeta
         int score = MakeAndUndoMove(board, move, depth - 1, alpha, beta, color);
+        ///////////////////
 
         if (score >= beta)
         {
@@ -264,8 +268,8 @@ namespace MyBot6  // #DEBUG
             K1[Ply] = move;
           }
 
-          transpositionTable.Store(key, beta, depth, flag: 2, move.RawValue);
-          return beta; // soft vs hard
+          transpositionTable.Store(key, score, depth, flag: 2, move.RawValue);
+          return score; // soft vs hard
         }
 
         if (score > alpha)
@@ -273,14 +277,15 @@ namespace MyBot6  // #DEBUG
           flag = 0;
           alpha = score;
         }
-        ///////////
+
+        movesSearched++;
       }
 
       transpositionTable.Store(key, alpha, depth, flag, 0); // no best move, they were all pretty bad
       return alpha;
     }
 
-    private int Quiescence(Board board, int alpha, int beta, int color, int depth = 3)
+    private int Quiescence(Board board, int alpha, int beta, int color, int depth)
     {
       int? entry = transpositionTable.Get(board.ZobristKey, depth, alpha, beta);
       if (entry != null)
@@ -293,7 +298,8 @@ namespace MyBot6  // #DEBUG
         .Sum(piece => (piece.IsWhite ? 1 : -1) *
               (
                 PieceVal[(int)piece.PieceType]
-                + (orderedMoves.Length * 10)
+                + (orderedMoves.Length * MobilityWeight)
+              // + (board.IsInCheck() ? 100 : 0)
               )
             );
 
@@ -321,12 +327,12 @@ namespace MyBot6  // #DEBUG
         Ply--;
 
         if (score >= beta)
-          return beta; // Fail-hard beta cutoff
+          return score; // Fail-soft beta cutoff
 
         alpha = Math.Max(alpha, score); // Update alpha with the score
 
         int delta = score - eval;
-        if (delta > 0 && delta >= 100) // Delta pruning condition, adjust the threshold as needed
+        if (delta > 0 && delta >= DeltaCutoff) // Delta pruning condition, adjust the threshold as needed
           break; // Stop searching if the improvement is significant
       }
 

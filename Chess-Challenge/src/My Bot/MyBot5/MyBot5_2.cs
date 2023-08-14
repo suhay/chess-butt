@@ -76,104 +76,10 @@ namespace MyBot5_2  // #DEBUG
     private readonly TranspositionTable transpositionTable = new();
     Dictionary<int, Move> K1 = new();
     Dictionary<int, Move> K2 = new();
-    private int nodes; // #DEBUG
 
     public Move Think(Board board, Timer timer)
     {
-      nodes = 0; // #DEBUG
       Ply = 0;
-      // int currentDepth = 1;
-      // Move[] moves = GetOrderedMoves(board);
-      // List<Move> bestMoves = new(moves);
-      // int bestScore = -Inf;
-
-      // while (currentDepth <= Depth)
-      // {
-      //   foreach (Move move in moves)
-      //   {
-      //     int score = MakeAndUndoMove(board, move, currentDepth, -Inf, Inf, board.IsWhiteToMove ? 1 : -1);
-
-      //     if (score == bestScore)
-      //       bestMoves.Add(move);
-
-      //     else if (score > bestScore)
-      //     {
-      //       bestScore = score;
-      //       bestMoves.Clear();
-      //       bestMoves.Add(move);
-
-      //       if (score == 100000)
-      //         break;
-      //     }
-      //   }
-      //   currentDepth++;
-      // }
-
-      // Random rng = new();
-      // Move nextMove = bestMoves[rng.Next(bestMoves.Count)];
-      // Console.WriteLine("Nodes: {0}, Moves: {1}", nodes, bestMoves.Count);
-      // return nextMove;
-
-
-
-
-
-      // Move bestMove = new();
-
-      // for (int currentDepth = 1; currentDepth <= Depth; currentDepth++)
-      // {
-      //   Move[] bestMoves = NegaMaxRoot(board, currentDepth, -Inf, Inf, board.IsWhiteToMove ? 1 : -1);
-      //   // if (timer.ElapsedMilliseconds >= TimeLimitMilliseconds)
-      //   //     break;
-      //   bestMove = bestMoves[0]; // Store the best move from the current depth
-      // }
-
-      // Console.WriteLine("Nodes: {0}", nodes);
-      // return bestMove;
-
-      /////////////////////////
-
-      //   int currentDepth = 1;
-      //   Move bestMove = new();
-
-      //   while (currentDepth <= Depth)
-      //   {
-      //     int guess = (alpha + beta) / 2;
-      // int score = MTD(board, guess, currentDepth);
-
-      //     Move[] moves = GetOrderedMoves(board);
-      //     List<Move> bestMoves = new(moves);
-      //     int bestScore = -Inf;
-
-      //     foreach (Move move in moves)
-      //     {
-      //       int score = MakeAndUndoMove(board, move, currentDepth, -Inf, Inf, board.IsWhiteToMove ? 1 : -1);
-
-      //       if (score == bestScore)
-      //         bestMoves.Add(move);
-
-      //       else if (score > bestScore)
-      //       {
-      //         bestScore = score;
-      //         bestMoves.Clear();
-      //         bestMoves.Add(move);
-
-      //         if (score == 100000)
-      //           break;
-      //       }
-      //     }
-
-      //     bestMove = bestMoves[0];
-      //     currentDepth++; // Increase depth for the next iteration
-      //   }
-
-      //   Console.WriteLine("Nodes: {0}", Nodes);
-      //   return bestMove;
-
-      /////////////////////////
-
-      K1.Clear();
-      K2.Clear();
 
       Move[] moves = GetOrderedMoves(board);
       List<Move> bestMoves = new(moves);
@@ -181,6 +87,9 @@ namespace MyBot5_2  // #DEBUG
 
       foreach (Move move in moves)
       {
+        K1.Clear();
+        K2.Clear();
+
         int score = MakeAndUndoMove(board, move, Depth, -Inf, Inf, board.IsWhiteToMove ? 1 : -1);
 
         if (score == bestScore)
@@ -201,28 +110,10 @@ namespace MyBot5_2  // #DEBUG
       Move nextMove = bestMoves[rng.Next(bestMoves.Count)];
       return nextMove;
     }
-    // int MTD(int depth, Board board, int guess, int color)
-    // {
-    //   int upperBound = Inf;
-    //   int lowerBound = -Inf;
 
-    //   while (lowerBound < upperBound)
-    //   {
-    //     int beta = Math.Max(guess, lowerBound + 1);
-    //     guess = NegaMax(depth, board, beta - 1, beta, color);
-
-    //     if (guess < beta)
-    //       upperBound = guess;
-    //     else
-    //       lowerBound = guess;
-    //   }
-
-    //   return guess;
-    // }
     private int MakeAndUndoMove(Board board, Move move, int depth, int alpha, int beta, int color)
     {
       board.MakeMove(move);
-      nodes++; // #DEBUG
       if (board.IsInCheckmate())
       {
         board.UndoMove(move);
@@ -277,18 +168,6 @@ namespace MyBot5_2  // #DEBUG
         return val;
       }
 
-      // Null move pruning. With R = 2, Depth will need to be > 4 for this to run beyond evaluating the next position
-      // if (board.PlyCount <= 70 && depth >= 3 && board.TrySkipTurn())
-      // {
-      //   int nullScore = -NegaMax(depth - 1 - 2, board, -beta, -beta + 1, -color);
-      //   board.UndoSkipTurn();
-      //   if (nullScore >= beta)
-      //   {
-      //     Console.WriteLine(".");
-      //     return beta;
-      //   }
-      // }
-
       Move[] orderedMoves = GetOrderedMoves(board);
 
       foreach (Move move in orderedMoves)
@@ -341,17 +220,7 @@ namespace MyBot5_2  // #DEBUG
       foreach (Move move in orderedMoves)
       {
         Ply++;
-        nodes++; // #DEBUG
         board.MakeMove(move);
-
-        // int seeScore = SEE(board, move);
-
-        // if (eval + seeScore >= beta)
-        // {
-        //   board.UndoMove(move);
-        //   return beta;
-        // }
-
         int score = -Quiescence(board, -beta, -alpha, -color, depth - 1);
         board.UndoMove(move);
         Ply--;
@@ -368,73 +237,5 @@ namespace MyBot5_2  // #DEBUG
 
       return alpha;
     }
-
-    // private int SEE() {
-    //   int score = 0;
-    //   int capturedValue = PieceVal[move.CapturePieceType];
-    //   int attackerValue = PieceVal[move.MovePieceType];
-
-    //   piece = get_smallest_attacker(square, side);
-
-
-    //    /* skip if the square isn't attacked anymore by this side */
-    //    if ( piece )
-    //    {
-    //       make_capture(piece, square);
-    //       /* Do not consider captures if they lose material, therefor max zero */
-    //       value = max (0, piece_just_captured() -see(square, other(side)) );
-    //       undo_capture(piece, square);
-    //    }
-    //    return value;
-    // }
-
-
-
-
-
-
-    // private int SEE(Board board, Move move)
-    // {
-    //   int score = 0;
-
-    //   if (!move.IsCapture)
-    //     return score;
-
-    //   int capturedValue = PieceVal[move.CapturePieceType];
-    //   int attackerValue = PieceVal[move.MovePieceType];
-
-    //   Square targetSquare = move.TargetSquare;
-    //   int ply = board.PlyCount;
-
-    //   for (int newAttackerValue = capturedValue; newAttackerValue <= attackerValue; newAttackerValue += 100)
-    //   {
-    //     score = Math.Max(score, newAttackerValue - SEE(move, board, targetSquare, newAttackerValue - capturedValue, ply));
-    //   }
-
-    //   return score;
-    // }
-
-    // private int SEE(Move move, Board board, Square targetSquare, int gain, int ply)
-    // {
-    //   int score = Math.Max(0, gain);
-
-
-    //   foreach (Piece attacker in board.SquareIsAttackedByOpponent(targetSquare))
-    //   {
-    //     int attackerValue = PieceVal[attacker.PieceType];
-    //     int capturedValue = PieceVal[targetSquare?.PieceType ?? PieceType.None];
-    //     int newGain = attackerValue - capturedValue;
-
-    //     if (newGain > gain)
-    //     {
-    //       board.MakeMove(move);
-    //       score = Math.Max(score, newGain - SEE(board, targetSquare, newGain, ply));
-    //       board.UndoMove(move);
-    //     }
-    //   }
-
-    //   return score;
-    // }
-
   }
 } // #DEBUG
