@@ -4,7 +4,7 @@ using System.Linq;
 using ChessChallenge.API;
 
 // 1023 / 1024
-namespace MyBot6  // #DEBUG
+namespace ChessButt_Copy  // #DEBUG
 {  // #DEBUG
   record Transposition(int Score, byte Depth, byte Flag, LinkedListNode<ulong> Node, ushort Move); // ~6 bytes per record
 
@@ -63,7 +63,7 @@ namespace MyBot6  // #DEBUG
         if (score == bestScore)
           bestMoves.Add(move);
 
-        if (score >= 90000)
+        if (score == 100000)
           break;
       }
 

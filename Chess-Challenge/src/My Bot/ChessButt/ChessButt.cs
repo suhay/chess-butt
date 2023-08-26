@@ -4,7 +4,7 @@ using System.Linq;
 using ChessChallenge.API;
 
 // 1023 / 1024
-namespace MyBot6  // #DEBUG
+namespace ChessButt  // #DEBUG
 {  // #DEBUG
   record Transposition(int Score, byte Depth, byte Flag, LinkedListNode<ulong> Node, ushort Move); // ~6 bytes per record
 

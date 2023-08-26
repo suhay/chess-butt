@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using ChessChallenge.API;
 
-public partial class MyBot : IChessBot
+public class MyBot : IChessBot
 {
   IChessBot bot;
 
@@ -18,7 +18,7 @@ public partial class MyBot : IChessBot
 
   public MyBot()
   {
-    bot = new MyBot6.MyBot(500, 4, 8, 4, 3);
+    bot = new ChessButt.MyBot();
   }
 
   public Move Think(Board board, Timer timer)

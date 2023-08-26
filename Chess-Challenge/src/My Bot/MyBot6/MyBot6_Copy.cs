@@ -23,9 +23,9 @@ namespace MyBot6_Copy  // #DEBUG
 
         return entry.Flag switch
         {
-          0 => score,
-          1 when score <= alpha => alpha,
-          2 when score >= beta => beta,
+          0 => score, // Exact
+          1 when score <= alpha => alpha, // Alpha
+          2 when score >= beta => beta, // Beta
           _ => null
         };
       }
@@ -70,40 +70,37 @@ namespace MyBot6_Copy  // #DEBUG
   public class MyBot : IChessBot
   {
     readonly int Inf = int.MaxValue;
-    readonly int MaxDepth = 4;
+    readonly int MaxDepth = 4; // #DEBUG
     readonly int[] PieceVal = new int[] { 0, 100, 300, 320, 500, 900, 2500 }; // No, P, N, B, R, Q, K
 
     int Depth;
     int Ply = 0;
-    int nodes; // #DEBUG
-    int PieceCount = 32;
 
     readonly TranspositionTable transpositionTable = new();
     readonly Dictionary<int, Move> K1 = new();
     readonly Dictionary<int, Move> K2 = new();
 
-    int DeltaCutoff = 100; // #DEBUG
+    int DeltaCutoff = 200; // #DEBUG
     int QDepth = 4; // #DEBUG
     int MobilityWeight = 8; // #DEBUG
 
     int FullDepthMoves = 4; // #DEBUG
     int ReductionLimit = 3; // #DEBUG
 
-    int R = 2;
+    int R = 2; // #DEBUG
 
-    public MyBot(int delta, int q, int mo, int fdm, int rl)
-    {
-      DeltaCutoff = delta;
-      QDepth = q;
-      MobilityWeight = mo;
-      FullDepthMoves = fdm;
-      ReductionLimit = rl;
-    }
+    public MyBot(int delta, int q, int mo, int fdm, int rl) // #DEBUG
+    { // #DEBUG
+      DeltaCutoff = delta; // #DEBUG
+      QDepth = q; // #DEBUG
+      MobilityWeight = mo; // #DEBUG
+      FullDepthMoves = fdm; // #DEBUG
+      ReductionLimit = rl; // #DEBUG
+    } // #DEBUG
 
     public Move Think(Board board, Timer timer)
     {
       Depth = timer.MillisecondsRemaining <= 12000 ? MaxDepth - 1 : MaxDepth;
-      nodes = 0; // #DEBUG
       Ply = 0;
 
       Move[] moves = GetOrderedMoves(board);
@@ -132,7 +129,6 @@ namespace MyBot6_Copy  // #DEBUG
 
       Random rng = new();
       Move nextMove = bestMoves[rng.Next(bestMoves.Count)];
-      Console.WriteLine("Nodes: {0}, Moves: {1}", nodes, bestMoves.Count); // #DEBUG
       return nextMove;
     }
 
@@ -140,7 +136,6 @@ namespace MyBot6_Copy  // #DEBUG
     private int MakeAndUndoMove(Board board, Move move, int depth, int alpha, int beta, int color)
     {
       board.MakeMove(move);
-      nodes++; // #DEBUG
       Ply++;
 
       int score;
@@ -163,14 +158,14 @@ namespace MyBot6_Copy  // #DEBUG
       return moves
         .OrderByDescending(move =>
         {
-          if (move.RawValue == entry?.Move)
+          if (move.RawValue == entry?.Move) // PV
             return 11000 + entry.Score;
-          if (move.IsCapture)
+          if (move.IsCapture) // MVV_LVA
             return (100 * (int)move.CapturePieceType) -
               (int)move.MovePieceType + 10006;
-          if (K1.ContainsKey(Ply) && K1[Ply] == move)
+          if (K1.ContainsKey(Ply) && K1[Ply] == move) // Killer Move 1
             return 9000;
-          if (K2.ContainsKey(Ply) && K2[Ply] == move)
+          if (K2.ContainsKey(Ply) && K2[Ply] == move) // Killer Move 2
             return 8000;
           if (move.IsPromotion)
             return 4000;
@@ -184,20 +179,16 @@ namespace MyBot6_Copy  // #DEBUG
       ulong key = board.ZobristKey;
       int flag = 1;
 
+      /////////////////// TT Lookup
       int? entry = transpositionTable.Get(key, depth, alpha, beta);
       if (entry != null)
         return (int)entry;
 
-      // if (depth == 1) // Adjust this threshold if needed
-      // {
-      //   int eval = color * Evaluate(board);
-      //   if (eval + DeltaCutoff <= alpha)
-      //     return eval; // Prune moves with low evaluation
-      // }
-
+      /////////////////// Check Extension
       if (board.IsInCheck())
         depth++;
 
+      /////////////////// Leaf Node
       if (depth == 0)
       {
         int val = Quiescence(board, alpha, beta, color, QDepth);
@@ -205,7 +196,7 @@ namespace MyBot6_Copy  // #DEBUG
         return val;
       }
 
-      /////////////////// Null move pruning
+      /////////////////// Null Move Pruning
       if (board.PlyCount <= 70 && depth >= 3 && board.TrySkipTurn())
       {
         int nullScore = -NegaMax(depth - 1 - R, board, -beta, -beta + 1, -color);
@@ -221,6 +212,7 @@ namespace MyBot6_Copy  // #DEBUG
       {
         int score;
 
+        /////////////////// LMR
         if (movesSearched >= FullDepthMoves && depth >= ReductionLimit && !move.IsCapture && !move.IsPromotion)
         {
           score = MakeAndUndoMove(board, move, depth - 2, alpha, alpha + 1, color);
@@ -232,6 +224,7 @@ namespace MyBot6_Copy  // #DEBUG
 
         if (score >= beta)
         {
+          /////////////////// Killer Moves
           if (!move.IsCapture)
           {
             if (K1.ContainsKey(Ply))
@@ -239,6 +232,7 @@ namespace MyBot6_Copy  // #DEBUG
             K1[Ply] = move;
           }
 
+          /////////////////// TT Store
           transpositionTable.Store(key, score, depth, flag: 2, move.RawValue);
           return score; // soft vs hard
         }
@@ -252,6 +246,7 @@ namespace MyBot6_Copy  // #DEBUG
         movesSearched++;
       }
 
+      /////////////////// TT Store
       transpositionTable.Store(key, alpha, depth, flag, 0); // no best move, they were all pretty bad
       return alpha;
     }
@@ -280,6 +275,7 @@ namespace MyBot6_Copy  // #DEBUG
 
       int eval = color * Evaluate(board);
 
+      /////////////////// Q Search Cutoff
       if (depth == 0 || eval >= beta)
         return eval;
 
@@ -290,7 +286,6 @@ namespace MyBot6_Copy  // #DEBUG
       foreach (Move move in orderedMoves)
       {
         Ply++;
-        nodes++; // #DEBUG
         board.MakeMove(move);
         int score = -Quiescence(board, -beta, -alpha, -color, depth - 1);
         board.UndoMove(move);
