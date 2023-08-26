@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using ChessChallenge.API;
 
-// 1040 / 1024
-namespace MyBot6  // #DEBUG
+// 979 / 1024
+namespace MyBot6_Copy  // #DEBUG
 {  // #DEBUG
   public record Transposition(int Score, byte Depth, byte Flag, LinkedListNode<ulong> Node, ushort Move); // ~6 bytes per record
 
@@ -12,6 +12,7 @@ namespace MyBot6  // #DEBUG
   {
     public readonly Dictionary<ulong, Transposition> table = new();
     private readonly LinkedList<ulong> evictionQueue = new();
+    private readonly int maxTableSize = 5000000; // # DEBUG 256mb / 6 bytes = ~24,000,000 records is the upper bound
 
     public int? Get(ulong key, int depth, int alpha, int beta)
     {
@@ -22,9 +23,9 @@ namespace MyBot6  // #DEBUG
 
         return entry.Flag switch
         {
-          0 => score, // Exact
-          1 when score <= alpha => alpha, // Alpha
-          2 when score >= beta => beta, // Beta
+          0 => score,
+          1 when score <= alpha => alpha,
+          2 when score >= beta => beta,
           _ => null
         };
       }
@@ -33,7 +34,7 @@ namespace MyBot6  // #DEBUG
     }
 
     // Flag: 0 = Exact, 1 = Alpha, 2 = Beta
-    public void Store(ulong key, int score, int depth, byte flag, ushort move)
+    public void Store(ulong key, int score, int depth, int flag, ushort move)
     {
       if (table.TryGetValue(key, out var existingEntry))
       {
@@ -41,16 +42,20 @@ namespace MyBot6  // #DEBUG
         if (depth >= existingEntry.Depth)
         {
           MoveToEnd(existingEntry.Node);
-          table[key] = new(score, (byte)depth, flag, existingEntry.Node, move);
+          table[key] = new(score, (byte)depth, (byte)flag, existingEntry.Node, move);
         }
       }
       else
-        table.Add(key, new(score, (byte)depth, flag, evictionQueue.AddLast(key), move));
+      {
+        var node = evictionQueue.AddLast(key);
+        table.Add(key, new(score, (byte)depth, (byte)flag, node, move));
+      }
 
       // Trim excess
-      if (table.Count >= 5000000) // 256mb / 6 bytes = ~24,000,000 records is the upper bound
+      if (table.Count >= maxTableSize)
       {
-        table.Remove(evictionQueue.First.Value);
+        ulong oldestKey = evictionQueue.First.Value;
+        table.Remove(oldestKey);
         evictionQueue.RemoveFirst();
       }
     }
@@ -65,78 +70,84 @@ namespace MyBot6  // #DEBUG
   public class MyBot : IChessBot
   {
     readonly int Inf = int.MaxValue;
-    readonly int MaxDepth = 4; // #DEBUG
+    readonly int MaxDepth = 4;
     readonly int[] PieceVal = new int[] { 0, 100, 300, 320, 500, 900, 2500 }; // No, P, N, B, R, Q, K
 
     int Depth;
     int Ply = 0;
+    int nodes; // #DEBUG
+    int PieceCount = 32;
 
     readonly TranspositionTable transpositionTable = new();
     readonly Dictionary<int, Move> K1 = new();
     readonly Dictionary<int, Move> K2 = new();
 
-    Board board;
-
-    int DeltaCutoff = 200; // #DEBUG
+    int DeltaCutoff = 100; // #DEBUG
     int QDepth = 4; // #DEBUG
     int MobilityWeight = 8; // #DEBUG
 
     int FullDepthMoves = 4; // #DEBUG
     int ReductionLimit = 3; // #DEBUG
 
-    int R = 2; // #DEBUG
+    int R = 2;
 
-    public MyBot(int delta, int q, int mo, int fdm, int rl) // #DEBUG
-    { // #DEBUG
-      DeltaCutoff = delta; // #DEBUG
-      QDepth = q; // #DEBUG
-      MobilityWeight = mo; // #DEBUG
-      FullDepthMoves = fdm; // #DEBUG
-      ReductionLimit = rl; // #DEBUG
-    } // #DEBUG
-
-    public Move Think(Board Board, Timer timer)
+    public MyBot(int delta, int q, int mo, int fdm, int rl)
     {
-      board = Board;
-      Depth = timer.MillisecondsRemaining <= 12500 ? MaxDepth - 1 : MaxDepth;
+      DeltaCutoff = delta;
+      QDepth = q;
+      MobilityWeight = mo;
+      FullDepthMoves = fdm;
+      ReductionLimit = rl;
+    }
+
+    public Move Think(Board board, Timer timer)
+    {
+      Depth = timer.MillisecondsRemaining <= 12000 ? MaxDepth - 1 : MaxDepth;
+      nodes = 0; // #DEBUG
       Ply = 0;
 
-      Move[] moves = GetOrderedMoves();
-      List<Move> bestMoves = new(moves);
+      Move[] moves = GetOrderedMoves(board);
+      List<Move> bestMoves = new(moves); // If we store the move with the most recent score, also aspiration windows
       int bestScore = -Inf;
 
       foreach (Move move in moves)
       {
         K1.Clear();
         K2.Clear();
-        int score = MakeAndUndoMove(move, Depth, -Inf, Inf, board.IsWhiteToMove ? 1 : -1);
-
-        if (score > bestScore)
-        {
-          bestScore = score;
-          bestMoves.Clear();
-        }
+        int score = MakeAndUndoMove(board, move, Depth, -Inf, Inf, board.IsWhiteToMove ? 1 : -1);
 
         if (score == bestScore)
           bestMoves.Add(move);
 
-        if (score == 100000)
-          break;
+        else if (score > bestScore)
+        {
+          bestScore = score;
+          bestMoves.Clear();
+          bestMoves.Add(move);
+
+          if (score == 100000)
+            break;
+        }
       }
 
       Random rng = new();
-      return bestMoves[rng.Next(bestMoves.Count)];
+      Move nextMove = bestMoves[rng.Next(bestMoves.Count)];
+      Console.WriteLine("Nodes: {0}, Moves: {1}", nodes, bestMoves.Count); // #DEBUG
+      return nextMove;
     }
 
     // alpha becomes -beta in the next iteration
-    private int MakeAndUndoMove(Move move, int depth, int alpha, int beta, int color)
+    private int MakeAndUndoMove(Board board, Move move, int depth, int alpha, int beta, int color)
     {
       board.MakeMove(move);
+      nodes++; // #DEBUG
       Ply++;
 
-      int score = board.IsInCheckmate()
-        ? 100000 - (Depth - depth) // Prioritize checkmates, giving more to checkmate in one
-        : -NegaMax(depth, -beta, -alpha, -color);
+      int score;
+      if (board.IsInCheckmate())
+        score = depth == Depth ? 100000 : 90000 + depth;
+      else
+        score = -NegaMax(depth, board, -beta, -alpha, -color);
 
       board.UndoMove(move);
       Ply--;
@@ -144,7 +155,7 @@ namespace MyBot6  // #DEBUG
       return score;
     }
 
-    private Move[] GetOrderedMoves(bool capturesOnly = false)
+    private Move[] GetOrderedMoves(Board board, bool capturesOnly = false)
     {
       Move[] moves = board.GetLegalMoves(capturesOnly);
       transpositionTable.table.TryGetValue(board.ZobristKey, out var entry);
@@ -152,68 +163,75 @@ namespace MyBot6  // #DEBUG
       return moves
         .OrderByDescending(move =>
         {
-          if (move.RawValue == entry?.Move)             // PV
+          if (move.RawValue == entry?.Move)
             return 11000 + entry.Score;
-          if (move.IsCapture)                           // MVV_LVA
+          if (move.IsCapture)
             return (100 * (int)move.CapturePieceType) -
               (int)move.MovePieceType + 10006;
-          if (K1.ContainsKey(Ply) && K1[Ply] == move)   // Killer Move 1
+          if (K1.ContainsKey(Ply) && K1[Ply] == move)
             return 9000;
-          if (K2.ContainsKey(Ply) && K2[Ply] == move)   // Killer Move 2
+          if (K2.ContainsKey(Ply) && K2[Ply] == move)
             return 8000;
+          if (move.IsPromotion)
+            return 4000;
           return 0;
         })
         .ToArray();
     }
 
-    private int NegaMax(int depth, int alpha, int beta, int color)
+    private int NegaMax(int depth, Board board, int alpha, int beta, int color)
     {
       ulong key = board.ZobristKey;
-      byte flag = 1;
+      int flag = 1;
 
-      /////////////////// TT Lookup
       int? entry = transpositionTable.Get(key, depth, alpha, beta);
       if (entry != null)
         return (int)entry;
 
-      /////////////////// Check Extension
+      // if (depth == 1) // Adjust this threshold if needed
+      // {
+      //   int eval = color * Evaluate(board);
+      //   if (eval + DeltaCutoff <= alpha)
+      //     return eval; // Prune moves with low evaluation
+      // }
+
       if (board.IsInCheck())
         depth++;
 
-      /////////////////// Leaf Node
       if (depth == 0)
       {
-        int val = Quiescence(alpha, beta, color, QDepth);
-        transpositionTable.Store(key, val, depth, 0, 0); // no best move to store, at leaf
+        int val = Quiescence(board, alpha, beta, color, QDepth);
+        transpositionTable.Store(key, val, depth, flag: 0, 0); // no best move to store, at leaf
         return val;
       }
 
-      /////////////////// Null Move Pruning
+      /////////////////// Null move pruning
       if (board.PlyCount <= 70 && depth >= 3 && board.TrySkipTurn())
       {
-        int nullScore = -NegaMax(depth - 1 - R, -beta, -beta + 1, -color);
+        int nullScore = -NegaMax(depth - 1 - R, board, -beta, -beta + 1, -color);
         board.UndoSkipTurn();
         if (nullScore >= beta)
           return nullScore;
       }
 
-      Move[] orderedMoves = GetOrderedMoves();
+      Move[] orderedMoves = GetOrderedMoves(board);
 
       int movesSearched = 0;
       foreach (Move move in orderedMoves)
       {
-        int score = alpha + 1; // force full depth if not LMR
+        int score;
 
-        /////////////////// LMR
         if (movesSearched >= FullDepthMoves && depth >= ReductionLimit && !move.IsCapture && !move.IsPromotion)
-          score = MakeAndUndoMove(move, depth - 2, alpha, alpha + 1, color);
-
-        if (alpha < score && score < beta)
-          score = MakeAndUndoMove(move, depth - 1, alpha, beta, color);
+        {
+          score = MakeAndUndoMove(board, move, depth - 2, alpha, alpha + 1, color);
+          if (alpha < score && score < beta)
+            score = MakeAndUndoMove(board, move, depth - 1, alpha, beta, color);
+        }
+        else
+          score = MakeAndUndoMove(board, move, depth - 1, alpha, beta, color);
 
         if (score >= beta)
         {
-          /////////////////// Killer Moves
           if (!move.IsCapture)
           {
             if (K1.ContainsKey(Ply))
@@ -221,8 +239,7 @@ namespace MyBot6  // #DEBUG
             K1[Ply] = move;
           }
 
-          /////////////////// TT Store
-          transpositionTable.Store(key, score, depth, 2, move.RawValue);
+          transpositionTable.Store(key, score, depth, flag: 2, move.RawValue);
           return score; // soft vs hard
         }
 
@@ -235,18 +252,13 @@ namespace MyBot6  // #DEBUG
         movesSearched++;
       }
 
-      /////////////////// TT Store
       transpositionTable.Store(key, alpha, depth, flag, 0); // no best move, they were all pretty bad
       return alpha;
     }
 
-    private int Quiescence(int alpha, int beta, int color, int depth)
+    int Evaluate(Board board)
     {
-      int? entry = transpositionTable.Get(board.ZobristKey, depth, alpha, beta);
-      if (entry != null)
-        return (int)entry;
-
-      int eval = color * board.GetAllPieceLists()
+      return board.GetAllPieceLists()
         .SelectMany(pieces => pieces)
         .Sum(piece => (piece.IsWhite ? 1 : -1) *
           (
@@ -258,20 +270,31 @@ namespace MyBot6  // #DEBUG
             )
           )
         );
+    }
 
-      /////////////////// Q Search Cutoff
+    private int Quiescence(Board board, int alpha, int beta, int color, int depth)
+    {
+      int? entry = transpositionTable.Get(board.ZobristKey, depth, alpha, beta);
+      if (entry != null)
+        return (int)entry;
+
+      int eval = color * Evaluate(board);
+
       if (depth == 0 || eval >= beta)
         return eval;
 
       alpha = Math.Max(alpha, eval); // update alpha with the evaluation
 
-      Move[] orderedMoves = GetOrderedMoves(true);
+      Move[] orderedMoves = GetOrderedMoves(board, true);
 
       foreach (Move move in orderedMoves)
       {
+        Ply++;
+        nodes++; // #DEBUG
         board.MakeMove(move);
-        int score = -Quiescence(-beta, -alpha, -color, depth - 1);
+        int score = -Quiescence(board, -beta, -alpha, -color, depth - 1);
         board.UndoMove(move);
+        Ply--;
 
         if (score >= beta)
           return score; // Fail-soft beta cutoff
