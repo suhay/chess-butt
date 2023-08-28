@@ -26,17 +26,17 @@ namespace ChessButt_Copy  // #DEBUG
     int DeltaCutoff = 500; // #DEBUG
     int MobilityWeight = 8; // #DEBUG
 
-    int FullDepthMoves = 4; // #DEBUG
+    int FullDepthMoves = 3; // #DEBUG
     int ReductionLimit = 3; // #DEBUG
 
     int R = 2; // #DEBUG
 
-    int Panic = 12500; // #DEBUG
-    int PanicD = 1; // #DEBUG
+    int Panic = 10000; // #DEBUG
+    int PanicD = 2; // #DEBUG
 
     int LateGamePly = 70; // #DEBUG
 
-    int TMax = 5000000;  // #DEBUG
+    int TMax = 3000000;  // #DEBUG
 
     public Move Think(Board _board, Timer timer)
     {

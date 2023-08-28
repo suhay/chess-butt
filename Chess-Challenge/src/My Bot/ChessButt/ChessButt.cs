@@ -31,12 +31,12 @@ namespace ChessButt  // #DEBUG
 
     int R = 2; // #DEBUG
 
-    int Panic = 12500; // #DEBUG
-    int PanicD = 1; // #DEBUG
+    int Panic = 10000; // #DEBUG
+    int PanicD = 2; // #DEBUG  2 prevented all over tines, but was slightly worse
 
     int LateGamePly = 70; // #DEBUG
 
-    int TMax = 5000000;  // #DEBUG
+    int TMax = 3000000;  // #DEBUG
 
     public Move Think(Board _board, Timer timer)
     {
@@ -63,7 +63,7 @@ namespace ChessButt  // #DEBUG
         if (score == bestScore)
           bestMoves.Add(move);
 
-        if (score >= 90000)
+        if (score == 100000)
           break;
       }
 
@@ -206,19 +206,17 @@ namespace ChessButt  // #DEBUG
 
       Move[] orderedMoves = GetOrderedMoves(true);
 
+      if (eval < alpha - DeltaCutoff && board.PlyCount <= LateGamePly)
+        return eval;
+
       foreach (Move move in orderedMoves)
       {
-        Ply++;
         board.MakeMove(move);
         int score = -Quiescence(-beta, -alpha, -color, depth - 1);
         board.UndoMove(move);
-        Ply--;
 
         if (score >= beta)
           return score; // Fail-soft beta cutoff
-
-        if (eval < alpha - DeltaCutoff && board.PlyCount <= LateGamePly)
-          break;
 
         alpha = Math.Max(alpha, score); // Update alpha with the score
       }
