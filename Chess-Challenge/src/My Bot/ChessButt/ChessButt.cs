@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using ChessChallenge.API;
 
-// 1023 / 1024
+// 1020 / 1024
 namespace ChessButt  // #DEBUG
 {  // #DEBUG
   record Transposition(int Score, byte Depth, byte Flag, LinkedListNode<ulong> Node, ushort Move); // ~6 bytes per record
@@ -23,10 +23,10 @@ namespace ChessButt  // #DEBUG
     int Depth;
     int Ply;
 
-    int DeltaCutoff = 500; // #DEBUG
+    int DeltaCutoff = 300; // #DEBUG
     int MobilityWeight = 8; // #DEBUG
 
-    int FullDepthMoves = 4; // #DEBUG
+    int FullDepthMoves = 3; // #DEBUG
     int ReductionLimit = 3; // #DEBUG
 
     int R = 2; // #DEBUG
@@ -38,10 +38,24 @@ namespace ChessButt  // #DEBUG
 
     int TMax = 3000000;  // #DEBUG
 
+    public MyBot(int dc, int mw, int fdm, int rl, int r, int p, int pd, int lgp, int tm) // #DEBUG
+    { // #DEBUG
+      DeltaCutoff = dc; // #DEBUG
+      MobilityWeight = mw; // #DEBUG
+      FullDepthMoves = fdm; // #DEBUG
+      ReductionLimit = rl; // #DEBUG
+      R = r; // #DEBUG
+      Panic = p; // #DEBUG
+      PanicD = pd; // #DEBUG
+      LateGamePly = lgp; // #DEBUG
+      TMax = tm; // #DEBUG
+    } // #DEBUG
+
     public Move Think(Board _board, Timer timer)
     {
       board = _board;
       Depth = timer.MillisecondsRemaining <= Panic ? 4 - PanicD : 4;
+      // Depth = 4;
       Ply = 0;
 
       Move[] moves = GetOrderedMoves();
@@ -67,8 +81,9 @@ namespace ChessButt  // #DEBUG
           break;
       }
 
-      Random rng = new();
-      return bestMoves[rng.Next(bestMoves.Count)];
+      // Random rng = new();
+      // return bestMoves[rng.Next(bestMoves.Count)];
+      return bestMoves[0];
     }
 
     // alpha becomes -beta in the next iteration
@@ -123,9 +138,9 @@ namespace ChessButt  // #DEBUG
         depth++;
 
       /////////////////// Leaf Node
-      if (depth == 0)
+      if (depth <= 0)
       {
-        int val = Quiescence(alpha, beta, color, Depth);
+        int val = Quiescence(alpha, beta, color, 3);
         StoreTransposition(key, val, depth, 0, 0); // no best move to store, at leaf
         return val;
       }
@@ -199,7 +214,7 @@ namespace ChessButt  // #DEBUG
         );
 
       /////////////////// Q Search Cutoff
-      if (depth == 0 || eval >= beta)
+      if (depth <= 0 || eval >= beta)
         return eval;
 
       alpha = Math.Max(alpha, eval); // update alpha with the evaluation

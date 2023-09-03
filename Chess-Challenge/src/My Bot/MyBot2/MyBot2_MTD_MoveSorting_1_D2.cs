@@ -113,7 +113,7 @@ public class MyBot2_MTD_MoveSorting_1_D2 : IChessBot
     // board.UndoMove(move);
     _board.UndoMove(board, move, Depth, depth, color, score);
 
-    return score + (CapturePriority * MyBot.PieceVal[move.CapturePieceType]);
+    return score + (CapturePriority * MyBot2.PieceVal[move.CapturePieceType]);
   }
 
   int MTD(int depth, Board board, int guess, int color)

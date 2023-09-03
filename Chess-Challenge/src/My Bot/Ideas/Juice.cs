@@ -60,7 +60,7 @@ public static class Juice
       switch (experiment)
       {
         case ExperimentType.TournamentHeatMap:
-          mod += TournamentHeatMap.Evaluate(piece) + MyBot.PieceVal[piece.PieceType];
+          mod += TournamentHeatMap.Evaluate(piece) + MyBot3_Base.PieceVal[piece.PieceType];
           break;
 
         case ExperimentType.MaxEuwe:
@@ -72,7 +72,7 @@ public static class Juice
       }
     }
 
-    return mod == 0 ? MyBot.PieceVal[piece.PieceType] : mod;
+    return mod == 0 ? MyBot3_Base.PieceVal[piece.PieceType] : mod;
   }
 }
 

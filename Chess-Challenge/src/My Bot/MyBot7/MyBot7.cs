@@ -194,7 +194,7 @@ namespace MyBot7 // #DEBUG
       if (board.IsInCheck())
         depth++;
 
-      if (depth == 0)
+      if (depth <= 0)
       {
         int val = Quiescence(board, alpha, beta, color, 3);
         TranspositionTable.Store(key, val, depth, flag: 0, 0); // no best move to store, at leaf
@@ -238,7 +238,7 @@ namespace MyBot7 // #DEBUG
           )
         );
 
-      if (depth == 0 || eval >= beta)
+      if (depth <= 0 || eval >= beta)
       {
         TranspositionTable.Store(key, eval, depth, flag: 0, 0); // no best move to store, at leaf
         return eval;

@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using static ChessChallenge.Application.Settings;
 using static ChessChallenge.Application.ConsoleHelper;
+using System.Collections.Generic;
 
 namespace ChessChallenge.Application
 {
@@ -57,8 +58,45 @@ namespace ChessChallenge.Application
     readonly int debugTokenCount;
     readonly StringBuilder pgns;
 
+    int MaxGames = 100;
+
+    bool ContinuousPlay = false;
+    List<Chromosomes> GenA;
+    Chromosomes A;
+
+    List<Chromosomes> GenB;
+    Chromosomes B;
+
+    List<Chromosomes> Elite = new();
+
     public ChallengeController()
     {
+      GenA = new() {
+        new Chromosomes(dc: 3626, mw: 3, fdm: 9, rl: 2, r: 1, p: 6791, pd: 1, lgp: 49, tm: 6642950),
+        new Chromosomes(dc: 2520, mw: 13, fdm: 9, rl: 2, r: 1, p: 13372, pd: 2, lgp: 56, tm: 3978872),
+        new Chromosomes(dc: 1569, mw: 3, fdm: 9, rl: 2, r: 1, p: 10592, pd: 1, lgp: 47, tm: 3322815),
+        new Chromosomes(dc: 1978, mw: 9, fdm: 2, rl: 2, r: 1, p: 11015, pd: 2, lgp: 49, tm: 9161247),
+        new Chromosomes(dc: 2596, mw: 8, fdm: 9, rl: 2, r: 1, p: 14953, pd: 1, lgp: 89, tm: 4747193),
+        new Chromosomes(dc: 3726, mw: 9, fdm: 6, rl: 2, r: 1, p: 10704, pd: 0, lgp: 79, tm: 9175919),
+        new Chromosomes(dc: 3626, mw: 3, fdm: 9, rl: 2, r: 1, p: 17380, pd: 1, lgp: 44, tm: 9015687),
+        new Chromosomes(true),
+        new Chromosomes(true),
+        new Chromosomes(true),
+      };
+
+      GenB = new() {
+        new Chromosomes(dc: 2411, mw: 7, fdm: 4, rl: 3, r: 1, p: 17394, pd: 2, lgp: 50, tm: 8056241),
+        new Chromosomes(dc: 2520, mw: 13, fdm: 9, rl: 2, r: 1, p: 10695, pd: 2, lgp: 89, tm: 8968382),
+        new Chromosomes(dc: 1569, mw: 3, fdm: 9, rl: 2, r: 1, p: 10592, pd: 1, lgp: 47, tm: 3047476),
+        new Chromosomes(dc: 1978, mw: 9, fdm: 2, rl: 2, r: 1, p: 11015, pd: 2, lgp: 70, tm: 8744802),
+        new Chromosomes(dc: 4970, mw: 10, fdm: 7, rl: 2, r: 1, p: 9026, pd: 3, lgp: 63, tm: 7597468),
+        new Chromosomes(dc: 3726, mw: 9, fdm: 6, rl: 2, r: 1, p: 10704, pd: 0, lgp: 60, tm: 7247345),
+        new Chromosomes(dc: 3626, mw: 3, fdm: 9, rl: 2, r: 1, p: 17380, pd: 1, lgp: 72, tm: 7794850),
+        new Chromosomes(true),
+        new Chromosomes(true),
+        new Chromosomes(true),
+      };
+
       Log($"Launching Chess-Challenge version {Settings.Version}");
       (tokenCount, debugTokenCount) = GetTokenCount();
       Warmer.Warm();
@@ -73,6 +111,9 @@ namespace ChessChallenge.Application
       BotStatsB = new BotMatchStats("IBot");
       botMatchStartFens = FileHelper.ReadResourceFile("Fens.txt").Split('\n').Where(fen => fen.Length > 0).ToArray();
       botTaskWaitHandle = new AutoResetEvent(false);
+
+      MaxGames = 7;
+      // MaxGames = botMatchStartFens.Length * 2;
 
       StartNewGame(PlayerType.Human, PlayerType.MyBot);
     }
@@ -160,8 +201,6 @@ namespace ChessChallenge.Application
       return Move.NullMove;
     }
 
-
-
     void NotifyTurnToMove()
     {
       //playerToMove.NotifyTurnToMove(board);
@@ -207,6 +246,17 @@ namespace ChessChallenge.Application
 
     ChessPlayer CreatePlayer(PlayerType type)
     {
+      if (ContinuousPlay)
+      {
+        return type switch
+        {
+          PlayerType.MyBot => new ChessPlayer(new MyBot(A), type, GameDurationMilliseconds),
+          PlayerType.EvilBot => new ChessPlayer(new EvilBot(), type, GameDurationMilliseconds),
+          PlayerType.TestBot => new ChessPlayer(new TestBot(B), type, GameDurationMilliseconds),
+          _ => new ChessPlayer(new HumanPlayer(boardUI), type)
+        };
+      }
+
       return type switch
       {
         PlayerType.MyBot => new ChessPlayer(new MyBot(), type, GameDurationMilliseconds),
@@ -283,7 +333,7 @@ namespace ChessChallenge.Application
 
         if (log)
         {
-          Log("Game Over: " + result, false, ConsoleColor.Blue);
+          // Log("Game Over: " + result, false, ConsoleColor.Blue);
         }
 
         string pgn = PGNCreator.CreatePGN(board, result, GetPlayerName(PlayerWhite), GetPlayerName(PlayerBlack));
@@ -294,8 +344,7 @@ namespace ChessChallenge.Application
         {
           UpdateBotMatchStats(result);
           botMatchGameIndex++;
-          // int numGamesToPlay = botMatchStartFens.Length * 2;
-          int numGamesToPlay = 100;
+          int numGamesToPlay = MaxGames;
 
           if (botMatchGameIndex < numGamesToPlay && autoStartNextBotMatch)
           {
@@ -311,6 +360,39 @@ namespace ChessChallenge.Application
           else if (autoStartNextBotMatch)
           {
             Log("Match finished", false, ConsoleColor.Blue);
+            Log("Result: " + BotStatsA.NumWins + "-" + BotStatsA.NumDraws + "-" + BotStatsA.NumLosses, false, ConsoleColor.Blue);
+
+            if (ContinuousPlay)
+            {
+              A.Fitness = BotStatsA.NumWins - BotStatsA.NumLosses;
+              B.Fitness = BotStatsB.NumWins - BotStatsB.NumLosses;
+
+              Elite.Add(A);
+              Elite.Add(B);
+
+              if (GenA.Count == 0)
+              {
+                Elite = Elite.OrderByDescending(a => a.Fitness).ToList();
+                Console.WriteLine("------------------");
+                Log(Elite[0].ToString());
+                Log(Elite[1].ToString());
+
+                Elite[2].CrossWith(Elite[3]).ForEach((e) => Log(e.ToString()));
+                Elite[4].CrossWith(Elite[5]).ForEach((e) => Log(e.ToString()));
+                Elite[6].CrossWith(Elite[7]).ForEach((e) => Log(e.ToString()));
+                Elite[8].CrossWith(Elite[9]).ForEach((e) => Log(e.ToString()));
+                Elite[10].CrossWith(Elite[11]).ForEach((e) => Log(e.ToString()));
+                Elite[12].CrossWith(Elite[13]).ForEach((e) => Log(e.ToString()));
+                Elite[14].CrossWith(Elite[5]).ForEach((e) => Log(e.ToString()));
+
+                Log($"DeltaCutoff = {Elite.Min(e => e.DeltaCutoff)}, MobilityWeight = {Elite.Min(e => e.MobilityWeight)}, FullDepthMoves = {Elite.Min(e => e.FullDepthMoves)}, ReductionLimit = {Elite.Min(e => e.ReductionLimit)}, R = {Elite.Min(e => e.R)}, Panic = {Elite.Min(e => e.Panic)}, PanicD = {Elite.Min(e => e.PanicD)}, LateGamePly = {Elite.Min(e => e.LateGamePly)}, TMax = {Elite.Min(e => e.TMax)}", false, ConsoleColor.Cyan);
+
+                return;
+              }
+
+              Elite.ForEach((e) => Log(e.ToString(), false, ConsoleColor.DarkRed));
+              StartNewBotMatch(PlayerType.MyBot, PlayerType.TestBot, ContinuousPlay);
+            }
           }
         }
       }
@@ -400,8 +482,9 @@ namespace ChessChallenge.Application
     static string GetPlayerName(ChessPlayer player) => GetPlayerName(player.PlayerType);
     static string GetPlayerName(PlayerType type) => type.ToString();
 
-    public void StartNewBotMatch(PlayerType botTypeA, PlayerType botTypeB)
+    public void StartNewBotMatch(PlayerType botTypeA, PlayerType botTypeB, bool continuousPlay = false)
     {
+      ContinuousPlay = continuousPlay;
       EndGame(GameResult.DrawByArbiter, log: false, autoStartNextBotMatch: false);
       botMatchGameIndex = 0;
       string nameA = GetPlayerName(botTypeA);
@@ -415,6 +498,20 @@ namespace ChessChallenge.Application
       BotStatsB = new BotMatchStats(nameB);
       botAPlaysWhite = true;
       Log($"Starting new match: {nameA} vs {nameB}", false, ConsoleColor.Blue);
+
+      if (ContinuousPlay)
+      {
+        Random rand = new();
+        A = GenA[rand.Next(GenA.Count)];
+        GenA.Remove(A);
+
+        B = GenB[rand.Next(GenB.Count)];
+        GenB.Remove(B);
+
+        Log(A.ToString(), false, ConsoleColor.Green);
+        Log(B.ToString(), false, ConsoleColor.Yellow);
+      }
+
       StartNewGame(botTypeA, botTypeB);
     }
 
@@ -422,7 +519,7 @@ namespace ChessChallenge.Application
     ChessPlayer PlayerToMove => board.IsWhiteToMove ? PlayerWhite : PlayerBlack;
     ChessPlayer PlayerNotOnMove => board.IsWhiteToMove ? PlayerBlack : PlayerWhite;
 
-    public int TotalGameCount => botMatchStartFens.Length * 2;
+    public int TotalGameCount => MaxGames;
     public int CurrGameNumber => Math.Min(TotalGameCount, botMatchGameIndex + 1);
     public string AllPGNs => pgns.ToString();
 

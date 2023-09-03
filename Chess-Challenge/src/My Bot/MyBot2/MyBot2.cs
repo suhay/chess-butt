@@ -5,6 +5,17 @@ using ChessChallenge.API;
 
 public class MyBot2 : IChessBot
 {
+  public static Dictionary<PieceType, int> PieceVal = new Dictionary<PieceType, int>
+  {
+    {PieceType.None, 0},
+    {PieceType.Pawn, 100},
+    {PieceType.Rook, 500},
+    {PieceType.Knight, 300},
+    {PieceType.Bishop, 300},
+    {PieceType.Queen, 900},
+    {PieceType.King, 10000}
+  };
+
   ExperimentType[] Experiments = new ExperimentType[]
   {
   };
@@ -110,7 +121,7 @@ public class MyBot2 : IChessBot
     // board.UndoMove(move);
     _board.UndoMove(board, move, Depth, depth, color, score);
 
-    return score + (CapturePriority * MyBot.PieceVal[move.CapturePieceType]);
+    return score + (CapturePriority * PieceVal[move.CapturePieceType]);
   }
 
   int NegaMax(int depth, Board board, int alpha, int beta, int color)

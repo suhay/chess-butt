@@ -32,6 +32,6 @@ public partial class MyBot3_Base
     board.UndoMove(move);
     Log_UndoMove(color, move, score);
 
-    return score + (CapturePriority * MyBot.PieceVal[move.CapturePieceType]);
+    return score + (CapturePriority * PieceVal[move.CapturePieceType]);
   }
 }

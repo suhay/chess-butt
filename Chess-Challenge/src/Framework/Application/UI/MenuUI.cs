@@ -33,6 +33,10 @@ namespace ChessChallenge.Application
       {
         controller.StartNewBotMatch(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.TestBot);
       }
+      if (NextButtonInRow("MyBot vs TestBot - Continuous", ref buttonPos, spacing, buttonSize))
+      {
+        controller.StartNewBotMatch(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.TestBot, continuousPlay: true);
+      }
 
       // Page buttons
       buttonPos.Y += breakSpacing;
