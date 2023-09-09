@@ -28,7 +28,7 @@ public class MyBot2 : IChessBot
   int Min = -9999;
   int Max = 9999;
 
-  Dictionary<ulong, Transposition> TranspositionTable = new Dictionary<ulong, Transposition>();
+  Dictionary<ulong, TT.Transposition> TranspositionTable = new Dictionary<ulong, TT.Transposition>();
 
   public static bool Color;
 
@@ -131,7 +131,7 @@ public class MyBot2 : IChessBot
 
     if (TranspositionTable.ContainsKey(key))
     {
-      Transposition entry = TranspositionTable[key];
+      TT.Transposition entry = TranspositionTable[key];
       if (entry.Depth > depth)
       {
         if (entry.Flag == 0)
@@ -167,7 +167,7 @@ public class MyBot2 : IChessBot
     if (score < oldAlpha) flag = 1;
     else if (score > beta) flag = -1;
 
-    TranspositionTable[key] = new Transposition(score, depth, flag);
+    TranspositionTable[key] = new TT.Transposition(score, depth, flag);
 
     return score;
   }

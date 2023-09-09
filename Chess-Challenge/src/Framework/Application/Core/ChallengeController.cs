@@ -58,43 +58,39 @@ namespace ChessChallenge.Application
     readonly int debugTokenCount;
     readonly StringBuilder pgns;
 
-    int MaxGames = 100;
+    int MaxGames = 20;
+    int MaxGenerations = 2;
 
     bool ContinuousPlay = false;
-    List<Chromosomes> GenA;
+    List<Chromosomes> Gen;
     Chromosomes A;
-
-    List<Chromosomes> GenB;
     Chromosomes B;
 
     List<Chromosomes> Elite = new();
 
     public ChallengeController()
     {
-      GenA = new() {
-        new Chromosomes(dc: 3626, mw: 3, fdm: 9, rl: 2, r: 1, p: 6791, pd: 1, lgp: 49, tm: 6642950),
-        new Chromosomes(dc: 2520, mw: 13, fdm: 9, rl: 2, r: 1, p: 13372, pd: 2, lgp: 56, tm: 3978872),
-        new Chromosomes(dc: 1569, mw: 3, fdm: 9, rl: 2, r: 1, p: 10592, pd: 1, lgp: 47, tm: 3322815),
-        new Chromosomes(dc: 1978, mw: 9, fdm: 2, rl: 2, r: 1, p: 11015, pd: 2, lgp: 49, tm: 9161247),
-        new Chromosomes(dc: 2596, mw: 8, fdm: 9, rl: 2, r: 1, p: 14953, pd: 1, lgp: 89, tm: 4747193),
-        new Chromosomes(dc: 3726, mw: 9, fdm: 6, rl: 2, r: 1, p: 10704, pd: 0, lgp: 79, tm: 9175919),
-        new Chromosomes(dc: 3626, mw: 3, fdm: 9, rl: 2, r: 1, p: 17380, pd: 1, lgp: 44, tm: 9015687),
-        new Chromosomes(true),
-        new Chromosomes(true),
-        new Chromosomes(true),
-      };
-
-      GenB = new() {
-        new Chromosomes(dc: 2411, mw: 7, fdm: 4, rl: 3, r: 1, p: 17394, pd: 2, lgp: 50, tm: 8056241),
-        new Chromosomes(dc: 2520, mw: 13, fdm: 9, rl: 2, r: 1, p: 10695, pd: 2, lgp: 89, tm: 8968382),
-        new Chromosomes(dc: 1569, mw: 3, fdm: 9, rl: 2, r: 1, p: 10592, pd: 1, lgp: 47, tm: 3047476),
-        new Chromosomes(dc: 1978, mw: 9, fdm: 2, rl: 2, r: 1, p: 11015, pd: 2, lgp: 70, tm: 8744802),
-        new Chromosomes(dc: 4970, mw: 10, fdm: 7, rl: 2, r: 1, p: 9026, pd: 3, lgp: 63, tm: 7597468),
-        new Chromosomes(dc: 3726, mw: 9, fdm: 6, rl: 2, r: 1, p: 10704, pd: 0, lgp: 60, tm: 7247345),
-        new Chromosomes(dc: 3626, mw: 3, fdm: 9, rl: 2, r: 1, p: 17380, pd: 1, lgp: 72, tm: 7794850),
-        new Chromosomes(true),
-        new Chromosomes(true),
-        new Chromosomes(true),
+      Gen = new() {
+        new Chromosomes(dc: 4862, mw: 9, fdm: 7, rl: 2, r: 1, p: 17380, pd: 1, lgp: 50, tm: 4411025),
+        new Chromosomes(dc: 3700, mw: 10, fdm: 6, rl: 2, r: 1, p: 17064, pd: 1, lgp: 58, tm: 4137511),
+        new Chromosomes(dc: 3626, mw: 14, fdm: 7, rl: 2, r: 2, p: 19165, pd: 1, lgp: 47, tm: 9350988),
+        new Chromosomes(dc: 3726, mw: 10, fdm: 9, rl: 2, r: 2, p: 14419, pd: 2, lgp: 66, tm: 6217579),
+        new Chromosomes(dc: 2520, mw: 9, fdm: 9, rl: 2, r: 1, p: 10711, pd: 1, lgp: 84, tm: 5937307),
+        new Chromosomes(dc: 3661, mw: 9, fdm: 6, rl: 2, r: 1, p: 19644, pd: 1, lgp: 49, tm: 3722018),
+        new Chromosomes(dc: 3622, mw: 10, fdm: 6, rl: 2, r: 1, p: 12341, pd: 2, lgp: 71, tm: 7597468),
+        new Chromosomes(dc: 2520, mw: 13, fdm: 4, rl: 2, r: 1, p: 10592, pd: 1, lgp: 49, tm: 9161247),
+        new Chromosomes(dc: 3790, mw: 11, fdm: 9, rl: 2, r: 1, p: 12154, pd: 2, lgp: 67, tm: 4417077),
+        new Chromosomes(dc: 4615, mw: 7, fdm: 4, rl: 2, r: 1, p: 12715, pd: 2, lgp: 72, tm: 7794850),
+        new Chromosomes(dc: 4970, mw: 9, fdm: 9, rl: 3, r: 1, p: 14335, pd: 0, lgp: 57, tm: 8947337),
+        new Chromosomes(dc: 4902, mw: 14, fdm: 7, rl: 2, r: 1, p: 13024, pd: 2, lgp: 85, tm: 3308359),
+        new Chromosomes(dc: 3626, mw: 7, fdm: 9, rl: 2, r: 1, p: 10763, pd: 2, lgp: 70, tm: 5983224),
+        new Chromosomes(dc: 4019, mw: 3, fdm: 9, rl: 3, r: 2, p: 15949, pd: 2, lgp: 44, tm: 7032579),
+        new Chromosomes(dc: 4054, mw: 9, fdm: 9, rl: 2, r: 1, p: 10695, pd: 2, lgp: 45, tm: 9446886),
+        new Chromosomes(dc: 1569, mw: 3, fdm: 9, rl: 2, r: 2, p: 10706, pd: 2, lgp: 59, tm: 3780545),
+        new Chromosomes(dc: 4451, mw: 10, fdm: 6, rl: 3, r: 1, p: 6791, pd: 2, lgp: 66, tm: 6642950),
+        new Chromosomes(dc: 4771, mw: 9, fdm: 7, rl: 3, r: 1, p: 13372, pd: 2, lgp: 79, tm: 7284764),
+        new Chromosomes(dc: 4977, mw: 7, fdm: 2, rl: 3, r: 1, p: 15491, pd: 2, lgp: 82, tm: 6304458),
+        new Chromosomes(dc: 1978, mw: 14, fdm: 9, rl: 2, r: 1, p: 19869, pd: 1, lgp: 55, tm: 9015687),
       };
 
       Log($"Launching Chess-Challenge version {Settings.Version}");
@@ -112,7 +108,6 @@ namespace ChessChallenge.Application
       botMatchStartFens = FileHelper.ReadResourceFile("Fens.txt").Split('\n').Where(fen => fen.Length > 0).ToArray();
       botTaskWaitHandle = new AutoResetEvent(false);
 
-      MaxGames = 7;
       // MaxGames = botMatchStartFens.Length * 2;
 
       StartNewGame(PlayerType.Human, PlayerType.MyBot);
@@ -268,7 +263,7 @@ namespace ChessChallenge.Application
 
     static (int totalTokenCount, int debugTokenCount) GetTokenCount()
     {
-      string path = Path.Combine(Directory.GetCurrentDirectory(), "src", "My Bot", "ChessButt", "ChessButt.cs");
+      string path = Path.Combine(Directory.GetCurrentDirectory(), "src", "My Bot", "ChessButt2", "ChessButt2.cs");
 
       using StreamReader reader = new(path);
       string txt = reader.ReadToEnd();
@@ -370,24 +365,71 @@ namespace ChessChallenge.Application
               Elite.Add(A);
               Elite.Add(B);
 
-              if (GenA.Count == 0)
+              if (Gen.Count == 0)
               {
+                List<Chromosomes> NextGeneration = new();
                 Elite = Elite.OrderByDescending(a => a.Fitness).ToList();
                 Console.WriteLine("------------------");
-                Log(Elite[0].ToString());
-                Log(Elite[1].ToString());
+                Log(Elite[0].NextGen());
+                NextGeneration.Add(Elite[0]);
+                Log(Elite[1].NextGen());
+                NextGeneration.Add(Elite[1]);
 
-                Elite[2].CrossWith(Elite[3]).ForEach((e) => Log(e.ToString()));
-                Elite[4].CrossWith(Elite[5]).ForEach((e) => Log(e.ToString()));
-                Elite[6].CrossWith(Elite[7]).ForEach((e) => Log(e.ToString()));
-                Elite[8].CrossWith(Elite[9]).ForEach((e) => Log(e.ToString()));
-                Elite[10].CrossWith(Elite[11]).ForEach((e) => Log(e.ToString()));
-                Elite[12].CrossWith(Elite[13]).ForEach((e) => Log(e.ToString()));
-                Elite[14].CrossWith(Elite[5]).ForEach((e) => Log(e.ToString()));
+                Elite[2].CrossWith(Elite[3]).ForEach((e) =>
+                {
+                  Log(e.NextGen());
+                  NextGeneration.Add(e);
+                });
+                Elite[4].CrossWith(Elite[5]).ForEach((e) =>
+                {
+                  Log(e.NextGen());
+                  NextGeneration.Add(e);
+                });
+                Elite[6].CrossWith(Elite[7]).ForEach((e) =>
+                {
+                  Log(e.NextGen());
+                  NextGeneration.Add(e);
+                });
+                Elite[8].CrossWith(Elite[9]).ForEach((e) =>
+                {
+                  Log(e.NextGen());
+                  NextGeneration.Add(e);
+                });
+                Elite[10].CrossWith(Elite[11]).ForEach((e) =>
+                {
+                  Log(e.NextGen());
+                  NextGeneration.Add(e);
+                });
+                Elite[12].CrossWith(Elite[13]).ForEach((e) =>
+                {
+                  Log(e.NextGen());
+                  NextGeneration.Add(e);
+                });
+                Elite[14].CrossWith(Elite[15]).ForEach((e) =>
+                {
+                  Log(e.NextGen());
+                  NextGeneration.Add(e);
+                });
+                Elite[16].CrossWith(Elite[17]).ForEach((e) =>
+                {
+                  Log(e.NextGen());
+                  NextGeneration.Add(e);
+                });
+                Elite[18].CrossWith(Elite[19]).ForEach((e) =>
+                {
+                  Log(e.NextGen());
+                  NextGeneration.Add(e);
+                });
 
                 Log($"DeltaCutoff = {Elite.Min(e => e.DeltaCutoff)}, MobilityWeight = {Elite.Min(e => e.MobilityWeight)}, FullDepthMoves = {Elite.Min(e => e.FullDepthMoves)}, ReductionLimit = {Elite.Min(e => e.ReductionLimit)}, R = {Elite.Min(e => e.R)}, Panic = {Elite.Min(e => e.Panic)}, PanicD = {Elite.Min(e => e.PanicD)}, LateGamePly = {Elite.Min(e => e.LateGamePly)}, TMax = {Elite.Min(e => e.TMax)}", false, ConsoleColor.Cyan);
 
-                return;
+                Elite.Clear();
+                Gen.Clear();
+                Gen = NextGeneration.ToList();
+                MaxGenerations--;
+
+                if (MaxGenerations == 0)
+                  return;
               }
 
               Elite.ForEach((e) => Log(e.ToString(), false, ConsoleColor.DarkRed));
@@ -502,11 +544,11 @@ namespace ChessChallenge.Application
       if (ContinuousPlay)
       {
         Random rand = new();
-        A = GenA[rand.Next(GenA.Count)];
-        GenA.Remove(A);
+        A = Gen[rand.Next(Gen.Count)];
+        Gen.Remove(A);
 
-        B = GenB[rand.Next(GenB.Count)];
-        GenB.Remove(B);
+        B = Gen[rand.Next(Gen.Count)];
+        Gen.Remove(B);
 
         Log(A.ToString(), false, ConsoleColor.Green);
         Log(B.ToString(), false, ConsoleColor.Yellow);

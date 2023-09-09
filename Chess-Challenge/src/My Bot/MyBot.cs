@@ -6,22 +6,7 @@ public class MyBot : IChessBot
 
   public MyBot()
   {
-    int DeltaCutoff = 300; // #DEBUG
-    int MobilityWeight = 8; // #DEBUG
-
-    int FullDepthMoves = 3; // #DEBUG
-    int ReductionLimit = 3; // #DEBUG
-
-    int R = 2; // #DEBUG
-
-    int Panic = 10000; // #DEBUG
-    int PanicD = 2; // #DEBUG  2 prevented all over tines, but was slightly worse
-
-    int LateGamePly = 70; // #DEBUG
-
-    int TMax = 3000000;  // #DEBUG
-
-    Bot = new ChessButt.MyBot(DeltaCutoff, MobilityWeight, FullDepthMoves, ReductionLimit, R, Panic, PanicD, LateGamePly, TMax);
+    Bot = new ChessButt2.MyBot();
   }
 
   public MyBot(Chromosomes x)

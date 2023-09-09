@@ -22,7 +22,7 @@ public class MyBot2_MTD_TT_MoveSorting_1_D2 : IChessBot
   int BestGuess = 0;
   bool UseMTD = false;
   bool UseTT = false;
-  TranspositionTable TranspositionTable = new TranspositionTable();
+  TT.TranspositionTable TranspositionTable = new TT.TranspositionTable();
 
   bool UseMoveOrder1 = false;
   int MoveOrder1Depth = 2;

@@ -3,7 +3,7 @@ using ChessChallenge.API;
 
 public abstract partial class MyBot3_Base : IChessBot
 {
-  protected TranspositionTable transpositionTable = new();
+  protected TT.TranspositionTable transpositionTable = new();
   protected ExperimentType[] experiments;
   protected KillerMoves KillerMoves = new();
   protected Dictionary<int, Move> PVTable = new();
